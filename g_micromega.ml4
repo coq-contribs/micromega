@@ -9,7 +9,7 @@ open Quote
 open Ring
 
 TACTIC EXTEND Micromega1
-   [ "MicromegaH" constr_list(l) ] -> [ Coq_micromega.micromega l ]
+   [ "micromegah" constr_list(l) ] -> [ Coq_micromega.micromega l ]
 END
 
 

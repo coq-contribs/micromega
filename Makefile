@@ -8,7 +8,7 @@ RM=/bin/rm -f
 
 COQMKTOP = $(COQTOP)/bin/coqmktop
 COQC = $(COQTOP)/bin/coqc
-CAMLP4O = "camlp4o.byte -I $(COQTOP)  pa_extend.cmo pa_extend_m.cmo q_MLast.cmo  parsing/grammar.cma -impl"
+CAMLP4O = "camlp4o -I $(COQTOP)  pa_extend.cmo pa_extend_m.cmo q_MLast.cmo  parsing/grammar.cma -impl"
 
 # includes : cut/past from coq Makefile
 # camlp4o  : idem - no idea about what it is doing
@@ -92,7 +92,7 @@ micromega.opt : micromega.cmxa
 	$(call mktop,-opt -o micromega.opt  nums.cmxa micromega.cmxa)
 
 micromega : micromega.cma
-	$(call mktop, -o micromega  nums.cma micromega.cma)
+	$(call mktop, -o micromega nums.cma micromega.cma)
 
 Micromegatac.vo : Micromegatac.v micromega
 	./micromega -compile Micromegatac
