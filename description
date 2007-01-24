@@ -1,0 +1,16 @@
+Name: Micromega
+Title: Micromega
+Author: Frédéric Besson
+Email: fbesson@irisa.fr
+Homepage: http://www.irisa.fr/lande/fbesson/fbesson.html
+Institution: Irisa/Inria
+Address:
+        Campus universitaire de Beaulieu
+        Avenue du Général Leclerc
+        35042 RENNES Cedex - France
+Date: 20 Novembre 2006
+Description: Micromega is a Coq reflexive tactic for a fragment of integer arithmetics.
+Url:
+License: LGPL
+Keywords: tactic reflection arithmetic non-linear
+Require:
