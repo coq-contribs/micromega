@@ -1,0 +1,90 @@
+(********************************************************************)
+(*                                                                  *)
+(* Micromega:A reflexive tactics  using the Positivstellensatz      *)
+(*                                                                  *)
+(*  Frédéric Besson (Irisa/Inria) 2006				    *)
+(*                                                                  *)
+(********************************************************************)
+Copyright (c) 2006  Frédéric Besson  (fbesson@irisa.fr)
+
+WHAT IS MICROMEGA
+-----------------
+
+The name Micromega is a tribute to omega -- the existing Coq decision procedure for linear integer arithmetics. 
+The proving power of the micromega tactics is not comparable with Omega.
+It solves a superset (Mega) of a subset (Micro) of the goals omega can cope with.
+
+Micromega is a Coq reflexive tactic for a fragment of integer arithmetics.  
+It is using a "positivity theorem" (Positivstellensatz) to find witnesses of unfeasibility of 
+a set of polynomial constraints. In short, this Positivstellensatz established by Stengle in 1974
+generalises both  Farkas's Lemma and Hilbert's Nullstellensatz.
+(For more insights about the theory, look at the paper  
+"Fast Reflexive Arithmetic Tactics: the linear case and beyond" to appear in TYPES'06).
+
+Compared to the (R)omega procedure, micromega is less complete:
+1 - Farkas's lemma is only complete over the rational - not for the integers
+  For instance, it cannot be used to prove the following goal : forall (x:Z), 2*x = 1 -> False
+2 - while (R)omega deals with propositional operators  /\ \/ ~ , micromega mostly ignores them.
+
+For linear goals, several tactcs are provided:
+- omicron (mini-omega) is using Farkas's lemma and a linear programming prover.
+- zomicron is more complete. In particular, it can prove forall (x:Z), 2*x = 1 -> False
+- omicmac does some propositional preprocessing before trying the previous tactics.
+  (It also use the fact over Z strict inequalities can be relaxed to non-strict inequalities).
+
+To alleviate the absence of propositional reasoning, the micmac tactic does some simple 
+propositional preprocessing before calling micromega. 
+
+The advantage of micromega is that, when micromega succeeds, the proof term produced should be smaller and
+faster to check.  Moreover, micromega can solve certain non-linear goals using the certificate generator of
+HOL LIGHT based on semi-definite programming techniques.
+
+WHEN TO USE MICROMEGA
+---------------------
+
+Concretely, micromega  solves goals of the form
+H1 : expr1 op1 expr1'
+....
+Hn : exprn opn exprn'
+-----------------------------
+False
+
+where opi ranges over {>,<,>=,<=,=}
+and expr are  expressions defined over Z using addition and multiplication
+
+Micromega can also solve goals for which the conclusion is made of a conjunction of  constraints
+expr1 op1 expr1' /\ ..... /\ exprn op1 exprn'
+
+
+BUILD
+-----
+Requirements: Coq 8.1 , Ocaml, Csdp (http://www.nmt.edu/~borchers/csdp.html)
+
+In file Makefile, set the COQTOP variable to the root directory of your coq source distribution.
+make
+
+This generates a customized coq runtime using the coqmktop utility : micromega.opt
+
+USAGE
+-----
+micromega.opt -I <directory_of_omicron>
+
+1 - Load the micromega tactics : "Require Import Micromegatac."
+2 - Kill a goal : "micromega." 
+2'- If some propositional reasoning is needed, try "micmac."
+
+Look at the example.v file for examples.
+
+
+LICENSE
+------
+This library is free software; you can redistribute it and/or
+modify it under the terms of the GNU Lesser General Public
+License as published by the Free Software Foundation
+
+
+
+
+
+
+
