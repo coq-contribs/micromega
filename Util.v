@@ -8,29 +8,46 @@
 Require Import ZArith.
 Require Import List.
 Require Import tacticsPerso.
-
-
 Require Import Bool.
+
+(* Basic arithmetics results *)
+
+Module ZArithE.
+  Open Scope Z_scope.
+  Lemma pos_times_pos_is_pos : forall x y, x >= 0 -> y >= 0 -> x * y >= 0.
+  Proof.
+    intros.
+    assert (0 <= x * y).
+    apply Zmult_le_0_compat;omega.
+    omega.
+  Qed.
+  
+  Lemma neq_or : forall x y, x <> y -> x > y \/ y > x.
+  Proof.
+    intros ; omega.
+  Qed.
+
+End ZArithE.
 
   
 Module ListS.
 
-  Fixpoint fold_left (A B:Set) (f:B -> A -> B)  (acc:B) (l:list A) {struct l}: B := 
+  Fixpoint fold_left (A B:Type) (f:B -> A -> B)  (acc:B) (l:list A) {struct l}: B := 
     match l with 
       | nil => acc
       | e::l => fold_left _ _ f (f acc e) l
     end.
   
-  Fixpoint fold_right (A B:Set) (f:A->B->B) (l:list A) (acc:B) {struct l} :B :=
+  Fixpoint fold_right (A B:Type) (f:A->B->B) (l:list A) (acc:B) {struct l} :B :=
     match l with 
       | nil => acc
       | e::l => f e (fold_right _ _ f l acc )
     end.
 
-  Definition for_all (A:Set) (f:A -> bool) (l:list A)  : bool :=
+  Definition for_all (A:Type) (f:A -> bool) (l:list A)  : bool :=
     fold_left _ _ (fun acc  e => andb acc (f e) ) true l.
 
-  Lemma for_all_prop : forall (A:Set) (l:list A) (pred: A -> bool), ListS.for_all A pred l = true -> forall x, In x l -> pred x = true.
+  Lemma for_all_prop : forall (A:Type) (l:list A) (pred: A -> bool), ListS.for_all A pred l = true -> forall x, In x l -> pred x = true.
   Proof.
     unfold for_all.
     intros  A l.

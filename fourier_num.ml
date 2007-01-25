@@ -12,16 +12,15 @@
    use of  the Num library
    try to get (small) integer solutions
 
-   Caveats: I have just learned that Fourier elimination exhibits an exponential worst 
+   Caveats: I have just learned that Fourier elimination exhibits an exponential worst case 
 
-   Scales better by taking equa
+   (Scales better by taking equations)
 *)
 
 open Num
 
 (* I want to minimize the sum of the variables while maximizing the numbers of zeros.
-   I am not quite interested in an optimal... 
-   A good value is enough
+   I am not quite interested in an optimal... A good value is enough
 *)
 let debug = false
 
@@ -37,8 +36,6 @@ let string_of_kind = function Eq -> "Eq" | Ge -> "Ge"
 let string_of_cstr  {coeffs =a  ; op = b ; cst =c} =
   Printf.sprintf "{coeffs = %s;op=%s;cst=%s}" (string_of_nums a) (string_of_kind b) (string_of_num c)
   
-
-
 
 module Interval = 
 struct
@@ -78,6 +75,24 @@ struct
 	  |  _ -> failwith "compare_error")
     | Itv(PlusInfty,_) -> failwith "not normalised"
     | Itv(_,MinusInfty) -> failwith "not normalised"
+
+  type status = O | Z | Q 
+	
+  let interval_kind = function
+    | Empty -> O
+    | Itv(MinusInfty,PlusInfty) -> Z
+    | Itv(MinusInfty,Bd i) -> Z
+    | Itv(Bd i,PlusInfty) -> Z
+    | Itv(Bd i,Bd j) -> 
+	(let i1 = ceiling_num i in
+	 let i2 = floor_num j in
+	   match compare_num i1 i2 with
+	     | 1 -> Q
+	     | _ -> Z)
+    | Itv(PlusInfty,_) -> failwith "not normalised"
+    | Itv(_,MinusInfty) -> failwith "not normalised"
+
+
 
 
   let pick_closed_to_zero x =
@@ -143,11 +158,10 @@ struct
     let res = inter i1 i2 in
     if debug then Printf.printf "inter %s %s = %s\n" (string_of_intrvl i1) (string_of_intrvl i2) (string_of_intrvl res);
     res
-	    
+
 
 end
 open Interval
-
 
 (* a.x >= b*)
 let bound_of_constraint (a,b) =
@@ -208,10 +222,12 @@ let rec partition m pos zero neg =
 		  partition m pos ((e,b)::zero) neg
 	      | _ -> partition m pos zero ((v,e,b)::neg)
 
-    
+
+(* sharing zero and one improves performance... a lot *)
 let zero = Int 0
 let one = Int 1
 
+(* Should I tabulate ?*)
 let add_num x y = 
   let res = add_num  x y in
     match res with
@@ -229,12 +245,9 @@ let rec lin_comb x y l1 l2 =
 	  | e2::l2 -> (add_num (mult_num x e1) (mult_num y e2))::(lin_comb x y l1' l2)
 
 
-
-
 let proj_cstr (p,pc,b) (n,nc,b') =
   let nopp = minus_num n in 
   (lin_comb nopp p pc nc,add_num (mult_num nopp b) (mult_num p b'))
-
 
 
   
@@ -282,15 +295,15 @@ let eval_constraint vals (coeffs,c)  =
     | [] -> ((Int 0),c)
     | e::l -> (e,sub_num c (product l vals))
 
-(* minimize all the variables... 
-*)
-let rec slow_optimize m =
+(* minimize all the variables...one by one*)
+
+let rec optimize m =
   if debug then Printf.printf "nb of constraints %i\n" (List.length m); flush stdout;
   match m with
     | [] -> Some [] (* nothing to do - there are no constraints *)
     |  l -> (* length of constraints in l is at most 1 *)
 	 try
-	   match slow_optimize (project l) with
+	   match optimize (project l) with
 	     | None -> None
 	     | Some vals -> 
 		 (* use this mapping to instanciate variables in l *)
@@ -306,7 +319,7 @@ let rec slow_optimize m =
 	 with Contradiction -> None (* projection found a trivial contradiction *)
 
 
-(* In case of equations, apply Gaussian elimination *)
+(* In case of equations, apply Gaussian elimination i.e. substitute *)
 
 let find_non_zero l = 
   let rec _find_non_zero l n =
@@ -366,10 +379,9 @@ let pivot n split cstr =
 let pivot n split cstr = 
   let (v,cf,cst) = split in
   let res = pivot n split cstr in 
-  if debug then Printf.printf "pivot %i (%s,%s,%s) %s = %s\n" n (string_of_num v) (string_of_nums cf) (string_of_num cst) (string_of_cstr cstr) (string_of_cstr res);
+  if debug then Printf.printf "pivot %i (%s,%s,%s) %s = %s\n" 
+    n (string_of_num v) (string_of_nums cf) (string_of_num cst) (string_of_cstr cstr) (string_of_cstr res);
   res
-
-
 	  
 let pivots n split l =
   List.rev_map (pivot n split) l
@@ -391,7 +403,7 @@ let rec optimize_with_equals may_contain_eq cstr =
     List.iter (fun x -> Printf.printf "%s\n" (string_of_cstr x)) cstr);
   match find_equation  may_contain_eq cstr with
     | L cstr -> 
-	slow_optimize (List.rev_map (fun {coeffs = coeffs;op = op;cst=cst} -> (coeffs,cst)) cstr)
+	optimize (List.rev_map (fun {coeffs = coeffs;op = op;cst=cst} -> (coeffs,cst)) cstr)
     | R(n,e,l,cstr) -> 
 	let {coeffs = coeffs ; op = op ; cst = cst} = e in
 	let (v,e') = split_at n coeffs in
@@ -406,30 +418,71 @@ let rec optimize_with_equals may_contain_eq cstr =
 
 let optimise cstr = optimize_with_equals cstr []
 
-open Big_int
+(* In the following, I try to find an integer empty interval for a variable.
+   Probably I could use a single Fourier elimination to get both a certificate of infeasibility AND  intervals...
+   Beware : here, constraints are not sparse!
+   And I do not deal with strict inequalities - neither do I do anything for disequalities...
+*)
 
-let ppcm x y = 
-  let g = gcd_big_int x y in
-  let x' = div_big_int x g in
-  let y' = div_big_int y g in
-  mult_big_int g (mult_big_int x' y')
+let nb_variables (l,n) = List.length l
 
+let interval_of_constraint (l,b) = 
+  bound_of_constraint  ( (match l with [] -> Int 0 | [v] -> v | _ -> failwith "interval_of_constraint"),b)
+  
+let  system_nb_vars m = 
+  List.fold_left (fun mx e -> let mx' = nb_variables e in
+		    if mx = -1 then mx' else (assert (mx = mx') ; mx)) (-1) m
+  
 
-let denominator = function
-  | Int _ | Big_int _ -> unit_big_int
-  | Ratio r -> Ratio.denominator_ratio r
-
-let numerator = function
-  | Ratio r -> Ratio.numerator_ratio r
-  | Int i -> Big_int.big_int_of_int i
-  | Big_int i -> i
-
-let rec ppcm_list c l =
+let first_last (l,b) =
   match l with
-    | [] -> c
-    | e::l -> ppcm_list (ppcm c (denominator e)) l
+    | [] -> (l,b)
+    | e::l -> (l@[e],b)
 
 
-let rats_to_ints l = 
-  let c = ppcm_list unit_big_int l in
-  List.map (fun x ->  (div_big_int (mult_big_int (numerator x) c) (denominator x))) l
+let find_Q_interval m =
+  let n = system_nb_vars m in
+
+  let rec _narrow m n =
+    if n = 1 then List.fold_left (fun itv x -> inter itv (interval_of_constraint x)) (Itv(MinusInfty,PlusInfty)) m
+    else _narrow (project m) (n - 1) in
+
+  (* _narrow_all (m:system of constraints) (p:position of the first variable in the initial system) *)
+  let  rec _narrow_all m p =
+    if p = n
+    then None (* We have tried all the possibilities *)
+    else
+      (* Try to project over p *)
+      let m = List.rev_map first_last m in
+      let itv = _narrow m n in
+	match interval_kind itv with
+	  | O -> None
+	  | Q -> Some(itv,p) (* Build a certificate from this *)
+	  | Z -> _narrow_all m (p+1) 
+  in
+    _narrow_all m 0
+
+
+let rec find_Q_interval_with_eq may_contain_eq cstr = 
+  match find_equation  may_contain_eq cstr with
+    | L cstr -> 
+	find_Q_interval (List.rev_map (fun {coeffs = coeffs;op = op;cst=cst} -> (coeffs,cst)) cstr)
+    | R(n,e,l,cstr) -> 
+	let {coeffs = coeffs ; op = op ; cst = cst} = e in
+	let (v,e') = split_at n coeffs in
+	let l' = pivots n (v,e',cst) l in
+	let cst' = pivots n (v,e',cst) cstr in
+	  find_Q_interval_with_eq l' cst'
+
+
+(*let find_Q_interval m = find_Q_interval_with_eq m []*)
+
+(* x >= y    x <= y *)
+let find_Q_interval cstr = 
+  find_Q_interval (List.fold_left (fun l {coeffs = coeffs;op = op;cst=cst} -> 
+							      match op with 
+								| Ge -> (coeffs,cst)::l
+								| Eq -> (coeffs,cst)::(List.map minus_num coeffs, minus_num cst)::l) [] cstr)
+
+
+

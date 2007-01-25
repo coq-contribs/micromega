@@ -12,8 +12,8 @@ Qed.
 
 Ltac apply_fun f H H1:= generalize (apply_fun _ _ f _ _ H) ; intro H1.
 
-Ltac CaseEq a := generalize (refl_equal a); pattern a at -1 in |- *; case a.
-Ltac gen_clear x := generalize x ; clear x.
+Require Import List.
+
 Ltac local_change x :=
   match goal with
     | |- ?F ?X => change (F x)
@@ -27,5 +27,14 @@ Ltac gen_abs x :=
 
 Ltac dup x := generalize x; intro.
 Ltac add_eq expr val := set (temp := expr) ; generalize (refl_equal temp) ; unfold temp at 1 ; generalize temp ; intro val ; clear temp.
+
+Require Import Bool.
+
+ Ltac flatten_bool :=
+     repeat match goal with
+              [ id : _ && _ = true |- _ ] =>  destruct (andb_prop _ _ id); clear id
+              |  [ id : _ || _ = true |- _ ] =>  destruct (orb_prop _ _ id); clear id
+            end.
+
 
 

@@ -5,14 +5,47 @@
 (*  Frédéric Besson (Irisa/Inria) 2006				    *)
 (*                                                                  *)
 (********************************************************************)
-module type Solver =
-  sig
-    open Big_int
-    type state
+let debug = false
 
-    val init : unit -> state
-    val find_witness :   state -> Micromega.M.coq_Expr Micromega.list -> big_int list option
-  end
+let fst' (Micromega.Pair(x,y)) = x
+let snd' (Micromega.Pair(x,y)) = y
+
+let rec try_any l x = 
+  match l with
+    | [] -> None
+    | (f,s)::l -> match f x with
+	| None -> if debug then Printf.printf "%s failed\n" s;  try_any l x
+	| x -> x
+
+
+open Num
+open Big_int
+
+let ppcm x y = 
+  let g = gcd_big_int x y in
+  let x' = div_big_int x g in
+  let y' = div_big_int y g in
+  mult_big_int g (mult_big_int x' y')
+
+
+let denominator = function
+  | Int _ | Big_int _ -> unit_big_int
+  | Ratio r -> Ratio.denominator_ratio r
+
+let numerator = function
+  | Ratio r -> Ratio.numerator_ratio r
+  | Int i -> Big_int.big_int_of_int i
+  | Big_int i -> i
+
+let rec ppcm_list c l =
+  match l with
+    | [] -> c
+    | e::l -> ppcm_list (ppcm c (denominator e)) l
+
+
+let rats_to_ints l = 
+  let c = ppcm_list unit_big_int l in
+  List.map (fun x ->  (div_big_int (mult_big_int (numerator x) c) (denominator x))) l
 
 
 module CoqToCaml =
@@ -82,9 +115,13 @@ struct
     if n=1 then XH
     else if n land 1 = 1 then XI (positive (n lsr 1))
     else  XO (positive (n lsr 1))
-	
-      
-  let index n = 
+
+  let rec index  n =
+    if n=1 then End_idx
+    else if n land 1 = 1 then Right_idx (index (n lsr 1))
+    else  Left_idx (index (n lsr 1))
+
+  let idx n = 
     (*a.k.a path_of_int *)
     (* returns the list of digits of n in reverse order with
        initial 1 removed *)
@@ -97,6 +134,7 @@ struct
       (List.rev (digits_of_int n))
 	(End_idx)
 
+    
 
   let z x = 
     match compare x 0 with
