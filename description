@@ -14,3 +14,5 @@ Url:
 License: LGPL
 Keywords: tactic reflection arithmetic non-linear
 Require:
+Category: Mathematics/Arithmetic and Number Theory/Miscellaneous
+Category: Miscellaneous/Coq Extensions
