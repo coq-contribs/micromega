@@ -9,7 +9,8 @@ Require Export Micromega.
 Require Export preMicromegatac.
 Require Import Zpol.
 Require Import QArith.
-
+ Export Polynomial.
+Require Export Ring_normalize.
 
 Ltac zomicron   := zomicronw ; vm_compute ; reflexivity.
     

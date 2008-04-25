@@ -12,6 +12,12 @@ Qed.
 
 Ltac apply_fun f H H1:= generalize (apply_fun _ _ f _ _ H) ; intro H1.
 
+Ltac eq_tac :=
+  match goal with
+    | |- (?G ?X) = (?H ?Y) =>   assert (HH :G = H) ; [idtac | assert (HH' : X = Y) ; [idtac | congruence]]
+  end.
+
+
 Require Import List.
 
 Ltac local_change x :=
@@ -19,10 +25,21 @@ Ltac local_change x :=
     | |- ?F ?X => change (F x)
   end.
 
-Ltac gen_abs x :=
+Ltac local_change_in H x :=
   match goal with
-    | |- ?F ?X => change (let x := X in F x) ; intro  x; generalize x;clear x
+    | H : ?F ?X |-  _ => change (F x) in H
   end.
+
+Lemma inst : forall (A:Type) (f:A -> Prop) (y:A),  (forall (x:A) ,  f x) ->  f y.
+Proof.
+  intros.
+  apply H.
+Qed.
+
+Ltac gen_abs x :=
+  apply inst ; intro x ; revert x.
+
+
 
 
 Ltac dup x := generalize x; intro.

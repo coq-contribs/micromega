@@ -1,10 +1,3 @@
-(********************************************************************)
-(*                                                                  *)
-(* Micromega:A reflexive tactics  using the Positivstellensatz      *)
-(*                                                                  *)
-(*  Frédéric Besson (Irisa/Inria) 2006				    *)
-(*                                                                  *)
-(********************************************************************)
 (* ============================================================================== *)
 (* This code originates from John Harrison's HOL LIGHT 2.20                       *)
 (* Laurent Théry (thery@sophia.inria.fr)  has isolated the HOL independent bits   *)
@@ -1970,9 +1963,9 @@ let run_csdp dbg obj mats =
 let csdp obj mats =
   let rv,res = run_csdp (!debugging) obj mats in
   (if rv = 1 or rv = 2 then failwith "csdp: Problem is infeasible"
-   else if rv = 3 then
-    (Format.print_string "csdp warning: Reduced accuracy";
-     Format.print_newline())
+   else if rv = 3 then ()
+					(*					(Format.print_string "csdp warning: Reduced accuracy";
+						Format.print_newline()) *)
    else if rv <> 0 then failwith("csdp: error "^string_of_int rv)
    else ());
   res;;

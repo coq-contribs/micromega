@@ -38,10 +38,11 @@ Proof.
   destruct z ; simpl; compute;congruence.
 Qed.
 
-Require Import LegacyRing.
+(*Require Import LegacyRing.
 Require Import Ring_theory.
-Require Import Ring_normalize.
+Require Import LRing_normalise.
 Require Import Quote.
+**)
 (*
 I could use the new ring implementation.
 Is-it really faster ?
@@ -52,15 +53,38 @@ Print PExpr.
 Print PEeval.
 *)
 
-
 Module Polynomial.
 
-  Definition Var := index.
-  Definition EEnv := varmap Z.
-  Definition Expr := polynomial Z.
-  
-  Definition interp_p := @interp_p Z Zplus Zmult Z0 Zopp.
-  
+  Definition Var := positive.
+  Require VarMap.
+  Definition EEnv := VarMap.t Z.
+  Require Export NRing.
+  Definition Expr := PExpr Z.
+
+  Fixpoint interp_p (l:EEnv) (pe: Expr) {struct pe} : Z :=
+   match pe with
+   | PEc c =>  c
+   | PEX j => VarMap.find  0 j l
+   | PEadd pe1 pe2 => (interp_p l pe1) + (interp_p l pe2)
+   | PEsub pe1 pe2 => (interp_p l pe1) - (interp_p l pe2)
+   | PEmul pe1 pe2 => (interp_p l pe1) * (interp_p l pe2)
+   | PEopp pe1 => - (interp_p l pe1)
+   | PEpow pe1 n => Zpower (interp_p l pe1) (Z_of_N n)
+   end.
+
+  Lemma interp_PEeval : forall env pe, interp_p env pe = @PEeval Z Z0 Zplus Zmult Zminus Zopp Z (fun x => x) Z Z_of_N Zpower (None,env) pe.
+  Proof.
+    induction pe ; simpl ; intros.
+    reflexivity.
+    reflexivity.
+    rewrite <- IHpe1 ; rewrite <- IHpe2 ; reflexivity.
+    rewrite <- IHpe1 ; rewrite <- IHpe2 ; reflexivity.
+    rewrite <- IHpe1 ; rewrite <- IHpe2 ; reflexivity.
+    rewrite <- IHpe ; reflexivity.
+    rewrite <- IHpe ; reflexivity.
+  Qed.
+
+(*  
   Definition power_pos (e:Expr) (n:positive) : Expr :=
     iter_pos n Expr (fun x => Pmult e x) (Pconst 1).
   
@@ -70,7 +94,8 @@ Module Polynomial.
       | Zpos p => power_pos e p
       | Zneg _ => Pconst 0
     end.
-  
+*)
+
   Inductive Op : Set :=
   | OpNEq
   | OpEq
@@ -126,103 +151,59 @@ Module Polynomial.
         | Some op => eval_redop op (interp_p env e) 0
       end.
 
-  Definition Minus (e1 e2 : Expr) : Expr :=
-    Pplus e1 (Popp e2).
+(*  Definition Minus (e1 e2 : Expr) : Expr :=
+    Pplus e1 (Popp e2). *)
 
-(* These versions work for Z, Q, Z... *)
-(*  Definition normalise (t:Term) : list Term' :=
-    let (lhs,o,rhs) := t in
-      match o with
-        | OpEq => (Minus lhs  rhs , Equal)::nil
-	| OpLe => (Minus rhs lhs,NonStrict) :: nil
-	| OpGe => (Minus lhs rhs,NonStrict) :: nil
-	| OpGt => (Minus lhs rhs,Strict)::nil
-	| OpLt => (Minus rhs lhs,Strict)::nil
-      end.
+  (* Over Z, there are several ways exist to normalise and negate *)
 
-
+(*
+   Definition normalise (t:Term) : list Term' :=
+      let (lhs,o,rhs) := t in
+        match o with
+    | OpEq => (Minus lhs  rhs , Some Equal)::nil
+    | OpNEq => (Minus lhs  rhs , None)::nil
+	   | OpLe => (Minus rhs lhs,Some NonStrict) :: nil
+	   | OpGe => (Minus lhs rhs,Some NonStrict) :: nil
+	   | OpGt => (Minus lhs rhs, Some Strict) ::nil
+	   | OpLt => (Minus rhs lhs, Some Strict) ::nil
+  end.
+  
   Definition negate (t:Term) : list Term' :=
     let (lhs,o,rhs) := t in
       match o with
-  (* e = e'  == (e >= e' /\ e' >= e) ==  ( ~ e < e' /\ ~ e' < e) *)
-        | OpEq => (Minus rhs lhs , Strict)::(Minus lhs rhs, Strict)::nil
+    | OpNEq => (Minus rhs  lhs, Some Equal)::nil
+    | OpEq => (Minus rhs  lhs, None)::nil
   (* e <= e' == ~ e > e' *)
-	| OpLe => (Minus lhs rhs, Strict) :: nil
-	| OpGe => (Minus rhs lhs, Strict) :: nil
-	| OpGt => (Minus rhs lhs, NonStrict)::nil
-	| OpLt => (Minus lhs rhs, NonStrict)::nil
-      end.
-*)
-(* For Z, it might be better to relax... *)
-(*  Definition normalise (t:Term) : list Term' :=
-    let (lhs,o,rhs) := t in
-      match o with
-        | OpEq => (Minus lhs  rhs , Equal)::nil
-	| OpLe => (Minus rhs lhs,NonStrict) :: nil
-	| OpGe => (Minus lhs rhs,NonStrict) :: nil
-	| OpGt => (Minus lhs (Pplus rhs (Pconst 1)),NonStrict)::nil
-	| OpLt => (Minus rhs (Pplus lhs (Pconst 1)),NonStrict)::nil
-      end.
-
-  Definition negate (t:Term) : list Term' :=
-    let (lhs,o,rhs) := t in
-      match o with
-  (* e = e'  == (e >= e' /\ e' >= e) ==  ( ~ e < e' /\ ~ e' < e) *)
-        | OpEq => (Minus rhs (Pplus lhs (Pconst 1)), NonStrict)::(Minus lhs (Pplus rhs (Pconst 1)), NonStrict)::nil
-  (* e <= e' == ~ e > e' *)
-	| OpLe => (Minus lhs (Pplus rhs (Pconst 1)), NonStrict) :: nil
-	| OpGe => (Minus rhs (Pplus lhs (Pconst 1)), NonStrict) :: nil
-	| OpGt => (Minus rhs lhs, NonStrict)::nil
-	| OpLt => (Minus lhs rhs, NonStrict)::nil
-      end.
+	   | OpLe => (Minus lhs rhs, Some Strict) :: nil
+	   | OpGe => (Minus rhs  lhs, Some Strict) :: nil
+	   | OpGt => (Minus rhs lhs, Some NonStrict)::nil
+	   | OpLt => (Minus lhs rhs, Some NonStrict)::nil
+  end.
 *)
 
-(** Third option : join of previous  **)
-(*  Definition normalise (t:Term) : list Term' :=
-    let (lhs,o,rhs) := t in
-      match o with
-        | OpEq => (Minus lhs  rhs , Equal)::nil
-	| OpLe => (Minus rhs lhs,NonStrict) :: nil
-	| OpGe => (Minus lhs rhs,NonStrict) :: nil
-	| OpGt => (Minus lhs (Pplus rhs (Pconst 1)),NonStrict)::(Minus lhs rhs, Strict) ::nil
-	| OpLt => (Minus rhs (Pplus lhs (Pconst 1)),NonStrict)::(Minus rhs lhs, Strict) ::nil
-      end.
+   Definition normalise (t:Term) : list Term' :=
+      let (lhs,o,rhs) := t in
+        match o with
+          | OpEq => (PEsub lhs  rhs , Some Equal)::nil
+          | OpNEq => (PEsub lhs  rhs , None)::nil
+	         | OpLe => (PEsub rhs lhs,Some NonStrict) :: nil
+	         | OpGe => (PEsub lhs rhs,Some NonStrict) :: nil
+	         | OpGt => (PEsub lhs rhs , Some Strict) :: nil
+	         | OpLt => (PEsub rhs lhs , Some Strict) :: nil
+        end.
 
   Definition negate (t:Term) : list Term' :=
     let (lhs,o,rhs) := t in
       match o with
-  (* e = e'  == (e >= e' /\ e' >= e) ==  ( ~ e < e' /\ ~ e' < e) *)
-        | OpEq => (Minus rhs (Pplus lhs (Pconst 1)), NonStrict)::(Minus lhs (Pplus rhs (Pconst 1)), NonStrict)::nil
+    | OpNEq => (PEsub rhs  lhs, Some Equal)::nil
+    | OpEq => (PEsub rhs  lhs, None)::nil
   (* e <= e' == ~ e > e' *)
-	| OpLe => (Minus lhs (Pplus rhs (Pconst 1)), NonStrict) :: nil
-	| OpGe => (Minus rhs (Pplus lhs (Pconst 1)), NonStrict) :: nil
-	| OpGt => (Minus rhs lhs, NonStrict)::nil
-	| OpLt => (Minus lhs rhs, NonStrict)::nil
-      end.
-*)
+	   | OpLe => (PEsub lhs rhs, Some Strict) :: nil
+	   | OpGe => (PEsub rhs  lhs, Some Strict) :: nil
+	   | OpGt => (PEsub rhs lhs, Some NonStrict)::nil
+	   | OpLt => (PEsub lhs rhs, Some NonStrict)::nil
+  end.
 
-  Definition normalise (t:Term) : list Term' :=
-    let (lhs,o,rhs) := t in
-      match o with
-        | OpEq => (Minus lhs  rhs , Some Equal)::nil
-        | OpNEq => (Minus lhs  rhs , None)::nil
-	| OpLe => (Minus rhs lhs,Some NonStrict) :: nil
-	| OpGe => (Minus lhs rhs,Some NonStrict) :: nil
-	| OpGt => (Minus lhs rhs, Some Strict) ::nil
-	| OpLt => (Minus rhs lhs, Some Strict) ::nil
-      end.
-
-  Definition negate (t:Term) : list Term' :=
-    let (lhs,o,rhs) := t in
-      match o with
-        | OpNEq => (Minus rhs  lhs, Some Equal)::nil
-        | OpEq => (Minus rhs  lhs, None)::nil
-  (* e <= e' == ~ e > e' *)
-	| OpLe => (Minus lhs rhs, Some Strict) :: nil
-	| OpGe => (Minus rhs  lhs, Some Strict) :: nil
-	| OpGt => (Minus rhs lhs, Some NonStrict)::nil
-	| OpLt => (Minus lhs rhs, Some NonStrict)::nil
-      end.
 
   Lemma no_middle_eval' : forall env d, (eval' env d) \/ ~ (eval' env d).
   Proof.
@@ -292,20 +273,20 @@ Module Polynomial.
 
 
   Inductive Monoid (l:list Term') : Expr -> Prop :=
-  | M_One : Monoid l (Pconst 1)
+  | M_One : Monoid l (PEc 1)
   | M_In : forall p, In (p,None) l -> Monoid l p
-  | M_Mult : forall e1 e2, Monoid l e1 -> Monoid l e2 -> Monoid l (Pmult e1 e2).
+  | M_Mult : forall e1 e2, Monoid l e1 -> Monoid l e2 -> Monoid l (PEmul e1 e2).
 
 
   Inductive Cone (l: list (Term')): Expr -> redOp -> Prop :=
   | InC : forall p op, In (p,Some op) l -> Cone l p op
-  | IsIdeal : forall p, Cone l p Equal -> forall p', Cone l (Pmult p p') Equal
-  | IsSquare : forall p, Cone l (Pmult p p) NonStrict
-  | IsMonoid : forall p, Monoid l p -> Cone l (Pmult p p) Strict
-  | IsMult : forall p op q oq, Cone l p op -> Cone l q oq -> Cone l (Pmult p q) (redOpMult op oq)
-  | IsAdd : forall p op q oq, Cone l p op -> Cone l q oq -> Cone l (Pplus p q) (redOpAdd op oq)
-  | IsPos : forall c, c > 0 -> Cone l (Pconst c) Strict
-  | IsZ   : Cone l (Pconst 0) Equal.
+  | IsIdeal : forall p, Cone l p Equal -> forall p', Cone l (PEmul p p') Equal
+  | IsSquare : forall p, Cone l (PEmul p p) NonStrict
+  | IsMonoid : forall p, Monoid l p -> Cone l (PEmul p p) Strict
+  | IsMult : forall p op q oq, Cone l p op -> Cone l q oq -> Cone l (PEmul p q) (redOpMult op oq)
+  | IsAdd : forall p op q oq, Cone l p op -> Cone l q oq -> Cone l (PEadd p q) (redOpAdd op oq)
+  | IsPos : forall c, c > 0 -> Cone l (PEc c) Strict
+  | IsZ   : Cone l (PEc 0) Equal.
 
 
   Lemma Monoid_mono : forall l p q , Monoid l q -> Monoid (p::l) q.
@@ -358,7 +339,7 @@ Module Polynomial.
     rewrite IHCone;reflexivity.
     simpl.
     apply sqr_pos.
-    generalize (Monoid_diff _ _ H _ H0).
+    generalize (@Monoid_diff _ _ H _ H0).
     simpl.
     generalize (interp_p env p).
     intros.
@@ -396,27 +377,27 @@ Module Polynomial.
   Definition mult (t t' : Expr * redOp) : Expr * redOp :=
     let (te,o) := t in
       let (te',o') := t' in
-        (Pmult te te', redOpMult o o').
+        (PEmul te te', redOpMult o o').
   
   Definition plus (t t' : Expr*redOp) : Expr * redOp :=
     let (te,o) := t in
       let (te',o') := t' in
-        (Pplus te te', redOpAdd o o').
+        (PEadd te te', redOpAdd o o').
   
   Definition multo (e:Expr) (t:Expr * redOp) : Expr * redOp :=
     let (te,o) := t in
       match o with
-        | Equal => (Pmult te e,Equal)
+        | Equal => (PEmul te e,Equal)
         | _    => t
       end.
 
   (* Could be a fold_left *)
   Fixpoint eval_monoid (l: list Term') (idxs : MonoidMember) {struct idxs} : Expr :=
     match idxs with
-      | nil => Pconst 1
-      | n :: rst => Pmult (match nth n l (Pconst 1, None) with
+      | nil => PEc 1
+      | n :: rst => PEmul (match nth n l (PEc 1, None) with
                       | (x,None) => x
-                      |  _       => Pconst 1
+                      |  _       => PEc 1
                     end)  (eval_monoid l rst)
     end.
 
@@ -427,8 +408,8 @@ Module Polynomial.
     constructor.
     simpl.
     apply M_Mult;auto.
-    destruct (nth_in_or_default a l (Pconst 1,None)).
-    destruct (nth a l (Pconst 1, None)).    
+    destruct (nth_in_or_default a l (PEc 1,None)).
+    destruct (nth a l (PEc 1, None)).    
     destruct o.
     constructor.
     apply M_In;auto.
@@ -439,30 +420,30 @@ Module Polynomial.
 
   Fixpoint eval_cone  (l: list Term') (p: ConeMember) {struct p} : Expr * redOp :=
     match p with
-      | S_In n => match nth n l (Pconst 1,Some Strict) with
-                    | (x, None) => (Pconst 1, Strict)
+      | S_In n => match nth n l (PEc 1,Some Strict) with
+                    | (x, None) => (PEc 1, Strict)
                     | (x, Some o) => (x,o)
                   end
       | S_Ideal e c => multo e (eval_cone l c)
-      | S_Square p => (Pmult p p, NonStrict)
-      | S_Monoid m => let p := eval_monoid l m in (Pmult p p, Strict)
+      | S_Square p => (PEmul p p, NonStrict)
+      | S_Monoid m => let p := eval_monoid l m in (PEmul p p, Strict)
       | S_Mult p q => 
         mult (eval_cone l p) (eval_cone l q)
       | S_Add p q => plus (eval_cone l p) (eval_cone l q)
-      | S_Pos p => (Pconst (Zpos p),Strict)
-      | S_Z => (Pconst Z0, Equal)
+      | S_Pos p => (PEc (Zpos p),Strict)
+      | S_Z => (PEc Z0, Equal)
     end.
 
   Lemma eval_cone_cone : forall p s, let (t,o) := eval_cone p s in Cone p t o.
   Proof.
     intros.
     induction s;simpl.
-    destruct (nth_in_or_default n p (Pconst 1,Some Strict)).
-    destruct (nth n p (Pconst 1, Some Strict)).
+    destruct (nth_in_or_default n p (PEc 1,Some Strict)).
+    destruct (nth n p (PEc 1, Some Strict)).
     destruct o.
     apply InC;auto.
     apply IsPos;romega.
-    destruct (nth n p (Pconst 1, Some Strict)).
+    destruct (nth n p (PEc 1, Some Strict)).
     inversion e.
     apply IsPos;auto.
     compute ; congruence.
@@ -499,47 +480,83 @@ Module Polynomial.
     intro.
     generalize (make_conj_in _ _ _  H0).
     intros.
-    unfold eval' in H1.
-    generalize (Cone_positive _ _ H1 _ o wit).
+    (*unfold eval' in H1.*)
+    generalize (@Cone_positive _ _ H1  _ o wit).
     generalize (H env).
     simpl.
     tauto.
   Qed.
 
   Require Import ZArith_base.
-  
+
+  (*Definition polynomial_simplify :=       @polynomial_simplify Z Zplus Zmult 1 Z0 Zopp  Zeq*)
+
+  Definition polynomial_simplify := @norm_aux Z Z0 1 Zplus Zmult Zminus Zopp (fun x y => proj1_sig (Z_eq_bool x y)).
+  Definition polynomial_simplify_ok := @norm_aux_spec Z Z0 1 Zplus Zmult Zminus Zopp (@eq Z).
+
+
   Definition checker_neg (t : Expr * redOp) : bool :=
     let (poly,op) := t in
     match 
-      @polynomial_simplify Z Zplus Zmult 1 Z0 Zopp Zeq_bool poly
+      polynomial_simplify  poly
       with
-      | Nil_monom => match op with
-                       | Strict    => true
-                       |   _       => false
-                     end
-      | Cons_monom x Nil_var (Nil_monom) => match op with
-                                              | Equal      => is_strict_neg x
-                                              | NonStrict => is_strict_neg x
-                                              | Strict    => is_neg x
-                                            end
+      | Pc x => match op with
+                  | Equal      => is_strict_neg x
+                  | NonStrict => is_strict_neg x
+                  | Strict    => is_neg x
+                end
       | _ => false
     end.
+
+  
+  Require InitialRing.
+  Require Ring_theory.
+
+  Lemma Zsemi_ring : semi_ring_theory Z0 (Zpos xH) Zplus Zmult (@eq Z).
+  Proof.
+    constructor; intros ; try omega.
+    rewrite Zmult_comm ; reflexivity.
+    rewrite Zmult_assoc ; reflexivity.
+    rewrite Zmult_plus_distr_l ; reflexivity.
+  Qed.
+
+  Lemma Zalmost_ring : almost_ring_theory Z0 (Zpos xH) Zplus Zmult Zminus Zopp (@eq Z).
+  Proof.
+    destruct Zsemi_ring.
+    constructor ; auto.
+    intros.
+    rewrite <- Zopp_mult_distr_l ; reflexivity.
+    intros ; omega.
+  Qed.
+
+  Lemma ZNpower : forall r n, r ^ Z_of_N n = pow_N 1 Zmult r n.
+  Proof.
+    destruct n.
+    reflexivity.
+    simpl.
+    unfold Zpower_pos.
+    replace (pow_pos Zmult r p) with (1 * (pow_pos Zmult r p)) by ring.
+    generalize 1.
+    induction p; simpl ; intros ; repeat rewrite IHp ; ring.
+  Qed.
     
+    
+
 
   Lemma checker_neg_sound : forall p o, checker_neg (p,o) = true -> forall env, ~ eval_redop  o (interp_p env p) 0.
   Proof.
     intros.
-    rewrite <- (polynomial_simplify_ok Z Zplus Zmult 1 0 Zopp Zeq_bool env).
+    unfold interp_p.
+    rewrite interp_PEeval.
+    rewrite (@norm_aux_spec Z Z0 1 Zplus Zmult Zminus Zopp (@eq Z) 
+      InitialRing.Zsth InitialRing.Zeqe Zalmost_ring 
+      Z Z0 (Zpos xH) Zplus Zmult Zminus Zopp (fun x y => proj1_sig (Z_eq_bool x y)) (fun x => x)).
     unfold checker_neg in H.
-    destruct (polynomial_simplify Zplus Zmult 1 0 Zopp Zeq_bool p).
-    destruct o.
-    discriminate.
+    change ((norm_aux 0 1 Zplus Zmult Zminus Zopp (fun x y => proj1_sig (Z_eq_bool x y)) p))
+      with (polynomial_simplify p).
+    destruct (polynomial_simplify p).
     simpl.
-    omega.
-    discriminate.
-    destruct v; try discriminate.
-    destruct c; try discriminate.
-    destruct o ; simpl.
+    destruct o ;simpl ; intros.
     generalize (is_strict_neg_ok _ H).
     romega.
     generalize (is_neg_ok _ H).
@@ -547,22 +564,28 @@ Module Polynomial.
     generalize (is_strict_neg_ok _ H).
     romega.
     discriminate.
-    Require Import LegacyZArithRing.
-    apply ZTheory.
+    discriminate.
+    constructor; intros ; try reflexivity.
+    generalize H0; unfold Z_eq_bool; destruct (Z_eq_dec x y). 
+      trivial. 
+      simpl; intros; discriminate.
+
+    constructor.
+    apply ZNpower.
   Qed.
+
 
   Definition Witness := ConeMember.
 
   Definition checker : Witness -> list Term' -> bool :=
     fun wit l => checker_neg   (eval_cone l wit).
 
-  Lemma checker_sound : forall t, (exists w, checker w t = true) -> forall env, make_impl _ (eval' env)  t False.
+  Lemma checker_sound : forall t  w, checker w t = true -> forall env, make_impl _ (eval' env)  t False.
   Proof.
     intros.
-    destruct H as [w H].
     case_eq (eval_cone t w).
     intros.
-    apply (prove_unfeasible t e).
+    apply (@prove_unfeasible t e).
     unfold witness.
     exists r.
     split.
@@ -586,14 +609,15 @@ Module Checkers := CheckerMaker.Make(Polynomial).
 
 (** Used by the tactics == unproved **)
 Import Polynomial.
+
 Fixpoint simpl_expr (e:Expr) : Expr :=
   match e with
-    | Pmult y z => let y' := simpl_expr y in let z' := simpl_expr z in
+    | PEmul y z => let y' := simpl_expr y in let z' := simpl_expr z in
       match y' , z' with
-        | Pconst 1 , z' => z'
-        |     _     , _   => Pmult y' z'
+        | PEc 1 , z' => z'
+        |     _     , _   => PEmul y' z'
       end
-    | Pplus x  y => Pplus (simpl_expr x) (simpl_expr y)
+    | PEadd x  y => PEadd (simpl_expr x) (simpl_expr y)
     |   _    => e
   end.
 
@@ -601,8 +625,8 @@ Fixpoint simpl_expr (e:Expr) : Expr :=
 Definition simpl_cone (e:ConeMember) : ConeMember :=
   match e with
     | S_Square t => match simpl_expr t with
-                      | Pconst (Zpos x) => S_Pos (BinPos.Pmult x x)
-                      | Pconst ZO   => S_Z
+                      | PEc (Zpos x) => S_Pos (BinPos.Pmult x x)
+                      | PEc ZO   => S_Z
                       |       x     => S_Square x
                     end
     | S_Mult t1 t2 => 
@@ -629,11 +653,41 @@ Definition simpl_cone (e:ConeMember) : ConeMember :=
   end.
 
 
+Fixpoint map_cone (f: nat -> nat) (e:ConeMember) : ConeMember :=
+  match e with
+    | S_In n         => S_In (f n)
+    | S_Ideal e cm   => S_Ideal e (map_cone f cm)
+    | S_Square _     => e
+    | S_Monoid l     => S_Monoid (List.map f l)
+    | S_Mult cm1 cm2 => S_Mult (map_cone f cm1) (map_cone f cm2)
+    | S_Add cm1 cm2  => S_Add (map_cone f cm1) (map_cone f cm2)
+    |  _             => e
+  end.
+
+Fixpoint indexes (e:ConeMember) : list nat :=
+  match e with
+    | S_In n         => n::nil
+    | S_Ideal e cm   => indexes cm
+    | S_Square e     => nil
+    | S_Monoid l     => l
+    | S_Mult cm1 cm2 => (indexes cm1)++ (indexes cm2)
+    | S_Add cm1 cm2  => (indexes cm1)++ (indexes cm2)
+    |  _             => nil
+  end.
+  
 (** To ease bindings from ml code **)
-Definition varmap := Quote.varmap.
+(*Definition varmap := Quote.varmap.*)
 Definition make_impl := Refl.make_impl.
 Definition make_conj := Refl.make_conj.
-Definition varmap_type := varmap Z.
+
+Require VarMap.
+
+(*Definition varmap_type := VarMap.t Z. *)
+Definition env := EEnv.
+Definition node := @VarMap.Node Z.
+Definition empty := @VarMap.Empty Z.
+Definition leaf := @VarMap.Leaf Z.
+
 Definition coneMember := ConeMember.
 
 Definition eval := eval.
@@ -642,10 +696,17 @@ Definition order_checkerT_sound := Checkers.order_checkerT_sound.
 
 Definition prod_pos_nat := prod positive nat.
 
-Definition power := power.
+Definition n_of_Z (z:Z) : N :=
+  match z with
+    | Z0 => N0
+    | Zpos p => Npos p
+    | Zneg p => N0
+  end.
+  
+
+(*Definition power := power.*)
 
 
-
-Extraction "micromega.ml"  List.map simpl_cone Checkers. 
+Extraction "micromega.ml"  List.map simpl_cone map_cone indexes  n_of_Z Checkers. 
 
   

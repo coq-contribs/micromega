@@ -1,0 +1,23 @@
+-R . Micromega
+tacticsPerso.v
+Util.v
+NRing.v
+VarMap.v
+Refl.v
+CheckerMaker.v
+example.v
+sos.ml
+certificate.ml
+fourier_alt.ml
+coq_micromega.ml
+micromega.ml
+utils.ml
+-custom "$(COQBIN)/coqmktop -opt -o micromega.opt nums.cmxa micromega.cmxa" "micromega.cmxa" micromega.opt
+-custom "$(COQC) -dump-glob Micromega.glob $(COQDEBUG) $(COQFLAGS) Micromega" "Micromega.v Util.vo Refl.vo CheckerMaker.vo" "Micromega.vo Micromega.glob micromega.ml micromega.mli"
+-custom "./micromega.opt $(COQLIBS) -compile preMicromegatac" "preMicromegatac.v micromega.opt" preMicromegatac.vo
+-custom "./micromega.opt $(COQLIBS) -compile Zpol" Zpol.v Zpol.vo
+-custom "./micromega.opt $(COQLIBS) -compile Micromegatac" "preMicromegatac.vo Zpol.vo Micromegatac.v micromega.opt" Micromegatac.vo
+-custom "$(CAMLOPTLINK) -a -o  micromega.cmxa utils.cmx vector.cmx fourier_alt.cmx micromega.cmx sos.cmx certificate.cmx coq_micromega.cmx g_micromega.cmx"
+"coq_micromega.cmx g_micromega.cmx micromega.cmx utils.cmx  fourier_alt.cmx vector.cmx sos.cmx certificate.cmx" micromega.cmxa
+-custom "$(CAMLOPTC) $(ZDEBUG) $(ZFLAGS) $(PP) $<" "utils.ml micromega.cmx" utils.cmx
+-custom "$(CAMLOPTC) $(ZDEBUG) $(ZFLAGS) $(PP) -impl $<" "g_micromega.ml4 coq_micromega.cmx" g_micromega.cmx

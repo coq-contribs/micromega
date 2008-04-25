@@ -9,7 +9,7 @@ Require Import Refl.
 Require Import List.
 Require Import Util.
 
-Module Type S.
+Module Type S_T.
 
   (* 'Term' is a syntactic representation of a certain kind of propositions. *)
   Variable Term : Set.
@@ -38,15 +38,15 @@ Module Type S.
   Variable Witness : Set.
   Variable checker : Witness -> list Term' -> bool.
   
-  Hypothesis checker_sound : forall t, (exists w, checker w t = true) -> forall env, make_impl _ (eval' env)  t False.
+  Hypothesis checker_sound : forall t  w, checker w t = true -> forall env, make_impl _ (eval' env)  t False.
 
-End S.
-
-
+End S_T.
 
 
 
-Module Make (S:S).
+
+
+Module Make (S:S_T).
   Import S.
 
   (* On normalising a list... *)
@@ -145,17 +145,15 @@ Module Make (S:S).
     Definition checkerT (w : Witness) (l:list Term) : bool :=
       checker w (normalise_list l).
 
-    Lemma checkerT_sound : forall t, (exists w, checkerT w t = true) -> forall env, make_impl _ (eval env)  t False.
+    Lemma checkerT_sound : forall t  w, checkerT w t = true -> forall env, make_impl _ (eval env)  t False.
     Proof.
       intros.
       apply make_conj_impl1.
       intro.
       generalize (conj_normalise _ _ H0).
       apply make_conj_impl2.
-      destruct H  as [w H].
       unfold checkerT in H.
-      apply checker_sound.
-      exists w ; auto.
+      apply (checker_sound _ _ H).
     Qed.
 
   (* This is a fold2 - could be made tail-recursive
@@ -178,14 +176,12 @@ Module Make (S:S).
     pre_order_checker (normalise_list t1) wits (negate_list t2).
 
 
-  Lemma order_checkerT_sound : forall t1 t2,
-    (exists wits, order_checkerT  t1 wits  t2 = true) -> 
+  Lemma order_checkerT_sound : forall t1 t2 wits, order_checkerT  t1 wits  t2 = true -> 
     forall env, make_impl _ (eval env) t1 (make_conj _ (eval env) t2).
   Proof.
     intros.
     apply make_conj_impl1.
     intro.
-    destruct H as [wits  H].
     unfold order_checkerT in H.
     apply make_dis_negate_list.
     red ; intro.
@@ -210,17 +206,17 @@ Module Make (S:S).
     intro.
     case_eq (checker a (t::l0)).
     intros.
-    generalize (checker_sound (t::l0) (ex_intro _ a H) env).
-    intro.
+    generalize (checker_sound (t::l0) a H env).
+    intro HH.
     simpl in H1.
     destruct l.
-    apply (make_conj_impl2  _ _ _ _ H3).
+    apply (make_conj_impl2  _ _ _ _ HH).
     simpl.
     destruct l0.
     auto.
     tauto.
     destruct H1.
-    apply (make_conj_impl2  _ _ _ _ H3).
+    apply (make_conj_impl2  _ _ _ _ HH).
     simpl.
     destruct l0 ; tauto.
     apply (IHwits _ _ H0 H1);auto.

@@ -44,12 +44,13 @@ Module ListS.
       | e::l => f e (fold_right _ _ f l acc )
     end.
 
-  Definition for_all (A:Type) (f:A -> bool) (l:list A)  : bool :=
+
+  Definition forallb (A:Type) (f:A -> bool) (l:list A)  : bool :=
     fold_left _ _ (fun acc  e => andb acc (f e) ) true l.
 
-  Lemma for_all_prop : forall (A:Type) (l:list A) (pred: A -> bool), ListS.for_all A pred l = true -> forall x, In x l -> pred x = true.
+  Lemma forallb_spec : forall (A:Type) (l:list A) (pred: A -> bool), ListS.forallb A pred l = true -> forall x, In x l -> pred x = true.
   Proof.
-    unfold for_all.
+    unfold forallb.
     intros  A l.
     pattern true at 1.
     gen_abs b.
@@ -93,7 +94,6 @@ Module ListS.
 
   Definition concatMap (A B :Set) (f: A -> list B) (l :list A) : list B :=
       ListS.fold_left _ _ (fun acc e => f e ++ acc) nil l.
-
 
   Lemma concatMap_cons : forall A B f e l, concatMap A B f (e::l) = (concatMap A B f l) ++ (f e).
   Proof.
@@ -261,6 +261,16 @@ Module ListS.
    apply IHn;auto.
  Qed.
 
-
+ Lemma In_map : forall A B (f:A->B) e l, In e (map f l) -> exists e', In e' l /\ e = f e'.
+ Proof.
+   induction l.
+   exact (fun H => False_ind _ H).
+   simpl.
+   intro H ; destruct H.
+   exists a ; split ; [left ; reflexivity | symmetry ;auto].
+   destruct (IHl H) as [e' [H1 H2]].
+   exists e'; split ; [right ; exact H1 |exact H2].
+ Qed.
+ 
 
 End ListS.

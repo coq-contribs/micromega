@@ -42,10 +42,67 @@ let rec ppcm_list c l =
     | [] -> c
     | e::l -> ppcm_list (ppcm c (denominator e)) l
 
+let rec rec_gcd_list c l  = 
+  match l with
+    | [] -> c
+    | e::l -> rec_gcd_list (gcd_big_int  c (numerator e)) l
+
+let rec gcd_list l = 
+		let res = rec_gcd_list zero_big_int l in
+				if compare_big_int res zero_big_int = 0 
+				then unit_big_int else res
+
+
 
 let rats_to_ints l = 
   let c = ppcm_list unit_big_int l in
   List.map (fun x ->  (div_big_int (mult_big_int (numerator x) c) (denominator x))) l
+
+(* Nasty reordering of lists - useful to trim certificate down *)
+let mapi f l =
+		let rec xmapi i l = 
+				match l with
+						| []   -> []
+						| e::l ->  (f e i)::(xmapi (i+1) l) in
+				xmapi 0 l
+
+
+let concatMapi f l = List.rev (mapi (fun e i -> (i,f e)) l)
+
+(* assoc_pos j [a0...an] = [j,a0....an,j+n],j+n+1 *)
+let assoc_pos j l = (mapi (fun e i -> e,i+j) l, j + (List.length l))
+
+let assoc_pos_assoc l = 
+		let rec xpos i l =
+				match l with
+						| [] -> []
+						| (x,l) ::rst -> let (l',j) = assoc_pos i l in 
+										(x,l')::(xpos j rst) in
+				xpos 0 l
+
+let filter_pos f l =
+		(* Could sort ... take care of duplicates... *)
+		let rec xfilter l =
+				match l with
+						| []  -> []
+						| (x,e)::l -> 
+									if List.exists (fun ee -> List.mem ee f) (List.map snd e)
+									then (x,e)::(xfilter l)
+									else xfilter l in
+				xfilter l
+
+let  select_pos lpos l =
+		let rec xselect i lpos l =
+				match lpos with
+						| [] -> []
+						| j::rpos -> 
+									match l with
+											| []   -> failwith "select_pos"
+											| e::l -> 
+														if i = j 
+														then e:: (xselect (i+1) rpos l)
+														else xselect (i+1) lpos l in
+				xselect 0 lpos l
 
 
 module CoqToCaml =
@@ -64,11 +121,17 @@ struct
     | XO p -> 2*(positive p)
 
 
+		let n nt =
+			match nt with
+				| N0 -> 0
+				| Npos p -> positive p
+
+
   let rec index i = (* Swap left-right ? *)
     match i with
-      | End_idx -> 1
-      | Right_idx i -> 1+(2*(index i))
-      | Left_idx i -> 2*(index i)
+      | XH -> 1
+      | XI i -> 1+(2*(index i))
+      | XO i -> 2*(index i)
 
 
   let z x = 
@@ -116,23 +179,31 @@ struct
     else if n land 1 = 1 then XI (positive (n lsr 1))
     else  XO (positive (n lsr 1))
 
-  let rec index  n =
-    if n=1 then End_idx
-    else if n land 1 = 1 then Right_idx (index (n lsr 1))
-    else  Left_idx (index (n lsr 1))
+		let  n nt = 
+			if nt < 0 
+			then assert false
+			else if nt = 0 then N0
+			else Npos (positive nt)
+
+
+		let rec index  n =
+    if n=1 then XH
+    else if n land 1 = 1 then XI (index (n lsr 1))
+    else  XO (index (n lsr 1))
+
 
   let idx n = 
-    (*a.k.a path_of_int *)
-    (* returns the list of digits of n in reverse order with
+   (*a.k.a path_of_int *)
+   (* returns the list of digits of n in reverse order with
        initial 1 removed *)
-    let rec digits_of_int n =
-      if n=1 then [] 
-      else (n mod 2 = 1)::(digits_of_int (n lsr 1))
-    in
+   let rec digits_of_int n =
+    if n=1 then [] 
+    else (n mod 2 = 1)::(digits_of_int (n lsr 1))
+   in
     List.fold_right 
-      (fun b c -> (if b then Right_idx c else Left_idx c))
+      (fun b c -> (if b then XI c else XO c))
       (List.rev (digits_of_int n))
-	(End_idx)
+	(XH)
 
     
 
@@ -165,4 +236,32 @@ struct
 
   let list elt l = List.fold_right (fun x l -> Cons(elt x, l)) l Nil
 
+end
+
+module Cmp =
+struct
+
+  let rec compare_lexical l = 
+    match l with
+      | [] -> 0 (* Equal *)
+      | f::l -> 
+	  let cmp = f () in
+	    if cmp = 0 	then  compare_lexical l else cmp
+
+  let rec compare_list cmp l1 l2 = 
+    match l1 , l2 with
+      | []  , [] -> 0
+      | []  , _  -> -1
+      | _   , [] -> 1
+      | e1::l1 , e2::l2 -> 
+	  let c = cmp e1 e2 in
+	    if c = 0 then compare_list cmp l1 l2 else c
+ 
+  let hash_list hash l = 
+    let rec _hash_list l h =
+    match l with
+      | []  -> h lxor (Hashtbl.hash [])
+      | e::l -> _hash_list l   ((hash e)  lxor h) in
+
+      _hash_list  l 0
 end

@@ -24,7 +24,7 @@ Ltac psimpl_arith :=
       | H: ~ (?X >= ?Y) |- _ => generalize  (Znot_ge_lt X Y H) ; clear H ; intro H
       | H: ?E -> False  |- _ => change  (~ E) in H
       | |- (@eq Z ?X ?Y)  => destruct (Z_eq_dec X Y)  as [__H | __H] ; [exact __H | apply False_ind]
-      | |- ~ (?X = ?Y) => red ; intro
+      | |- ~ ?X => red ; intro
       | |- ( ?X > ?Y)  => destruct (Z_gt_le_dec X Y) as [__H | __H] ; [exact __H | apply False_ind]
       | |- ( ?X < ?Y)  => destruct (Z_lt_le_dec X Y) as [__H | __H] ; [exact __H | apply False_ind]
       | |- ( ?X >= ?Y) => destruct (Z_ge_lt_dec X Y) as [__H | __H] ; [exact __H | apply False_ind]
@@ -59,15 +59,19 @@ Ltac zrelax :=
 (* I would not like to clear Hs*)
 
 
-Ltac micromega  :=  micromegaw -1 ; vm_compute ; reflexivity.
+Tactic Notation "micromega"  := micromegaw -1 ; vm_compute ; reflexivity.
+Tactic Notation "micromega" constr(d) := micromegad d; vm_compute ; reflexivity.
 
 Ltac sos := sosw ; vm_compute ; reflexivity.
 
 Ltac omicron :=  omicronw ; vm_compute ; reflexivity.
 
-Tactic Notation "micmac" constr(d) := repeat psimpl_arith ; intuition; micromegad d; vm_compute ; reflexivity.
+(* Intuition might undo simplifications *)
 
-Tactic Notation "micmac" := repeat psimpl_arith ; intuition ; let x := (constr : (Zneg xH)) in micromegad x  ; vm_compute ; reflexivity.
+Tactic Notation "micmac" constr(d) := repeat psimpl_arith ; (intuition auto)  ; micromegad d; vm_compute ; reflexivity.
+
+Tactic Notation "micmac" := repeat psimpl_arith ; (intuition auto) ; 
+  let x := (constr : (Zneg xH)) in micromegad x  ; vm_compute ; reflexivity.
 
 
   

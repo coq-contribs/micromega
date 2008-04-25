@@ -29,7 +29,7 @@ struct
   let coq_modules =
     init_modules @ [logic_dir] @ arith_modules @ zarith_base_modules @ [ ["Coq";"Lists";"List"];["Micromega"];
 									 ["Coq";"QArith"; "QArith_base"];
-									 ["Zpol"]]
+									 ["Zpol"] ;  ["LRing_normalise"]]
       
   let constant = gen_constant_in_modules "Micromega" coq_modules
     
@@ -40,7 +40,14 @@ struct
   let coq_O = lazy (constant "O")
   let coq_S = lazy (constant "S")
   let coq_nat = lazy (constant "nat")
+
+  let coq_NO = lazy (constant "N0")
+  let coq_Npos = lazy (constant "Npos")
+  let coq_n = lazy (constant "N")
+
   let coq_pair = lazy (constant "pair")
+  let coq_None = lazy (constant "None")
+  let coq_option = lazy (constant "option")
   let coq_positive = lazy (constant "positive")
   let coq_xH = lazy (constant "xH")
   let coq_xO = lazy (constant "xO")
@@ -50,7 +57,9 @@ struct
   let coq_POS = lazy (constant  "Zpos")
   let coq_NEG = lazy (constant  "Zneg")
 
-  let coq_Witness = lazy (constant "Build_Witness")
+  let coq_Build_Witness = lazy (constant "Build_Witness")
+  let coq_Witness = lazy (gen_constant_in_modules "Zpol" [["Zpol"]] "Witness")
+
   let coq_Q = lazy (constant "Qmake")
 
   let coq_Zgt = lazy (constant "Zgt")
@@ -64,12 +73,16 @@ struct
   let coq_Zopp = lazy (constant "Zopp")
   let coq_Zmult = lazy (constant "Zmult")
 
-  open Ring
-  let coq_V = coq_Pvar
-  let coq_C = coq_Pconst
-  let coq_Add = coq_Pplus
-  let coq_UMinus = coq_Popp
-  let coq_Mult = coq_Pmult
+
+
+  let coq_V = lazy (gen_constant_in_modules "NRing" [["NRing"]] "PEX" )
+  let coq_C = lazy (gen_constant_in_modules "NRing" [["NRing"]] "PEc")
+  let coq_Add = lazy (gen_constant_in_modules "NRing" [["NRing"]] "PEadd")
+  let coq_UMinus = lazy (gen_constant_in_modules "NRing" [["NRing"]]"PEopp")
+  let coq_Mult = lazy (gen_constant_in_modules "NRing"  [["NRing"]] "PEmul")
+  let coq_Sub = lazy (gen_constant_in_modules "NRing"  [["NRing"]] "PEsub")
+  let coq_pow = lazy (gen_constant_in_modules "NRing"  [["NRing"]] "PEpow")
+
 
   let coq_OpEq = lazy (gen_constant_in_modules "Micromega" [["Micromega"]] "OpEq")
   let coq_OpNEq = lazy (gen_constant_in_modules "Micromega" [["Micromega"]] "OpNEq")
@@ -123,6 +136,7 @@ struct
 
 
 
+
   let rec parse_positive term = 
     let (i,c) = get_left_construct term in
     match i with
@@ -141,17 +155,23 @@ struct
   let pp_positive o x = Printf.fprintf o "%i" (CoqToCaml.positive x)	  
 
 
-  open Quote
+
 
   let rec dump_index x = 
     match x with
-      | End_idx -> Lazy.force coq_End_idx
-      | Left_idx p -> Term.mkApp(Lazy.force coq_Left_idx,[| dump_index p |])
-      | Right_idx p -> Term.mkApp(Lazy.force coq_Right_idx,[| dump_index p |])
+      | XH -> Lazy.force coq_xH
+      | XO p -> Term.mkApp(Lazy.force coq_xO,[| dump_index p |])
+      | XI p -> Term.mkApp(Lazy.force coq_xI,[| dump_index p |])
 
 
   let pp_index o x = Printf.fprintf o "%i" (CoqToCaml.index x)	  
 
+  let rec dump_n x = 
+    match x with
+      | N0 -> Lazy.force coq_NO
+      | Npos p -> Term.mkApp(Lazy.force coq_Npos,[| dump_positive p |])
+
+		let rec pp_n o x =  output_string o  (string_of_int (CoqToCaml.n x))
 
   let dump_pair t1 t2 dump_t1 dump_t2 (Pair (x,y)) =
     Term.mkApp(Lazy.force coq_pair,[| t1 ; t2 ; dump_t1 x ; dump_t2 y|])
@@ -198,24 +218,29 @@ struct
 
 
 
-  let pp_var  = pp_index
-  let dump_var = dump_index
+  let pp_var  = pp_positive
+  let dump_var = dump_positive
 
   let rec pp_expr o e = 
     match e with
-      | Micromega.Pvar n -> Printf.fprintf o "V %a" pp_var n
-      | Micromega.Pconst z -> pp_z o z
-      | Micromega.Pplus(e1,e2) -> Printf.fprintf o "(%a)+(%a)" pp_expr e1 pp_expr e2
-      | Micromega.Pmult(e1,e2) -> Printf.fprintf o "%a*(%a)" pp_expr e1 pp_expr e2
-      | Micromega.Popp e -> Printf.fprintf o "-(%a)" pp_expr e
+      | Micromega.PEX n -> Printf.fprintf o "V %a" pp_var n
+      | Micromega.PEc z -> pp_z o z
+      | Micromega.PEadd(e1,e2) -> Printf.fprintf o "(%a)+(%a)" pp_expr e1 pp_expr e2
+      | Micromega.PEmul(e1,e2) -> Printf.fprintf o "%a*(%a)" pp_expr e1 pp_expr e2
+      | Micromega.PEopp e -> Printf.fprintf o "-(%a)" pp_expr e
+      | Micromega.PEsub(e1,e2) -> Printf.fprintf o "(%a)-(%a)" pp_expr e1 pp_expr e2
+      | Micromega.PEpow(e,n) -> Printf.fprintf o "(%a)^(%a)" pp_expr e pp_n  n
 
   let rec dump_expr typ e =
     match e with
-      | Micromega.Pvar n -> mkApp(Lazy.force coq_V,[| typ; dump_var n |])
-      | Micromega.Pconst z -> mkApp(Lazy.force coq_C,[| typ ; dump_z z |])
-      | Micromega.Pplus(e1,e2) -> mkApp(Lazy.force coq_Add,[| typ; dump_expr typ e1;dump_expr typ e2|])
-      | Micromega.Popp e -> mkApp(Lazy.force coq_UMinus,[| typ; dump_expr typ e|])
-      | Micromega.Pmult(e1,e2) ->  mkApp(Lazy.force coq_Mult,[| typ; dump_expr typ e1;dump_expr typ e2|])
+      | Micromega.PEX n -> mkApp(Lazy.force coq_V,[| typ; dump_var n |])
+      | Micromega.PEc z -> mkApp(Lazy.force coq_C,[| typ ; dump_z z |])
+      | Micromega.PEadd(e1,e2) -> mkApp(Lazy.force coq_Add,[| typ; dump_expr typ e1;dump_expr typ e2|])
+      | Micromega.PEsub(e1,e2) -> mkApp(Lazy.force coq_Sub,[| typ; dump_expr typ e1;dump_expr typ e2|])
+      | Micromega.PEopp e -> mkApp(Lazy.force coq_UMinus,[| typ; dump_expr typ e|])
+      | Micromega.PEmul(e1,e2) ->  mkApp(Lazy.force coq_Mult,[| typ; dump_expr typ e1;dump_expr typ e2|])
+      | Micromega.PEpow(e,n) ->  mkApp(Lazy.force coq_pow,[| typ; dump_expr typ e;dump_n n|])
+
 
   let rec dump_monoid l = dump_list (Lazy.force coq_nat) dump_nat l
 
@@ -315,16 +340,16 @@ struct
 	
     let compute_rank_add env v =
       let rec _add env n v =
-	match env with
-	  | [] -> ([v],n)
-	  | e::l -> 
-	      if eq_constr e v 
-	      then (env,n)
-	      else 
-		let (env,n) = _add l ( n+1) v in
-		(e::env,n) in
+							match env with
+								| [] -> ([v],n)
+								| e::l -> 
+											if eq_constr e v 
+											then (env,n)
+											else 
+												let (env,n) = _add l ( n+1) v in
+													(e::env,n) in
       let (env, n) =  _add env 1 v in
-      (env, CamlToCoq.idx n)
+							(env, CamlToCoq.idx n)
 
 	
     let empty = []
@@ -344,56 +369,56 @@ struct
     let combine env op (t1,t2) =
       let (expr1,env) = parse_zexpr env t1 in
       let (expr2,env) = parse_zexpr env t2 in
-      (op expr1 expr2,env) in
-      match kind_of_term term with
-	| App(t,args) -> 
-	    (
-	      match kind_of_term t with
-		| Const c -> 
-		    (match  Names.string_of_con c with
-		       | "Coq.ZArith.BinInt#<empty>#Zplus" -> 
-			   combine env (fun x y -> Pplus(x,y)) (args.(0),args.(1))
-		    | "Coq.ZArith.BinInt#<empty>#Zminus" -> 
-			combine env (Polynomial.coq_Minus) (args.(0),args.(1)) 
-		    | "Coq.ZArith.BinInt#<empty>#Zmult"-> 
-			combine env (fun x y -> Pmult (x,y)) (args.(0),args.(1))
-		    | "Coq.ZArith.BinInt#<empty>#Zopp"-> 
-			let (expr,env) = parse_zexpr env args.(0) in
-			  (Popp expr, env)
-		    | "Coq.ZArith.Zpower#<empty>#Zpower"-> 
-			(* This is convertible to a product *)
-			let (expr,env) = parse_zexpr env args.(0) in
-			  (power expr (parse_z args.(1))  , env) 
-		    |  s -> 
-			 let (env,n) = Env.compute_rank_add env term in  (Pvar n , env)
-		    )
-		| Construct(i,_) -> 
-		    begin
-		      try 
-			( Pconst (parse_z term) , env)
-		      with _ -> 
-			let (env,n) = Env.compute_rank_add env term in
-			  (Pvar  n , env)
-		    end
-		|   _   -> let (env,n) = Env.compute_rank_add env term in
-		      (Pvar  n , env)
-	    ) 
-	| Var   id    ->   let (env,n) = Env.compute_rank_add env term in
-	    (Pvar  n , env)
-	|  Construct(i,_) -> ( Pconst (parse_z term) , env)
-	     (*  Paramters  x : Z ... *)
-	|  t   ->   let (env,n) = Env.compute_rank_add env term in
-	     (Pvar  n , env)
-	       
-	     (* Pp.pp (Printer.prterm  term); Pp.pp_flush () ;*)
-
+							(op expr1 expr2,env) in
+     match kind_of_term term with
+						| App(t,args) -> 
+									(
+										match kind_of_term t with
+											| Const c -> 
+														(match  Names.string_of_con c with
+																| "Coq.ZArith.BinInt#<empty>#Zplus" -> 
+																			combine env (fun x y -> PEadd(x,y)) (args.(0),args.(1))
+																| "Coq.ZArith.BinInt#<empty>#Zminus" -> 
+																			combine env (fun x y -> PEsub(x,y)) (args.(0),args.(1)) 
+																| "Coq.ZArith.BinInt#<empty>#Zmult"-> 
+																			combine env (fun x y -> PEmul (x,y)) (args.(0),args.(1))
+																| "Coq.ZArith.BinInt#<empty>#Zopp"-> 
+																			let (expr,env) = parse_zexpr env args.(0) in
+																				(PEopp expr, env)
+																| "Coq.ZArith.Zpow_def#<empty>#Zpower"-> 
+																			let (expr,env) = parse_zexpr env args.(0) in
+																			let exp = (parse_z args.(1)) in 
+																				(PEpow(expr, Micromega.n_of_Z exp)  , env) 
+																|  s -> if debug then (Printf.printf "unkown op: %s" s; flush stdout;);
+																								let (env,n) = Env.compute_rank_add env term in  (PEX n , env) 
+														) 
+											| Construct(i,_) -> 
+														begin
+															try 
+																( PEc (parse_z term) , env)
+															with _ -> 
+																let (env,n) = Env.compute_rank_add env term in
+																	(PEX  n , env)
+														end
+											|   _   -> let (env,n) = Env.compute_rank_add env term in
+																(PEX  n , env)
+									) 
+						| Var   id    ->   let (env,n) = Env.compute_rank_add env term in
+									(PEX  n , env)
+						|  Construct(i,_) -> ( PEc (parse_z term) , env)
+										(*  Paramters  x : Z ... *)
+						|  t   ->   let (env,n) = Env.compute_rank_add env term in
+										(PEX  n , env)
+											
+	 (* Pp.pp (Printer.prterm  term); Pp.pp_flush () ;*)
+											
 	      
 (*  let check_term str term =
     match kind_of_term term with
       | Ind(n,_) -> str =  (Names.string_of_kn n)
       |     _    -> failwith "check term : not implemented"**)
 
-  let rec parse_arith env cstr = 
+						let rec parse_arith env cstr = 
     match kind_of_term cstr with
       | App(op,args) -> 
 	  let zop = parse_zop op in
@@ -522,14 +547,79 @@ let rec apply_ids t ids =
     | [] -> t
     | i::ids -> apply_ids (Term.mkApp(t,[| Term.mkVar i |])) ids
 
+(*
+(*  open Ring*)
+		let coq_Node = lazy (gen_constant_in_modules "Micromega" [["Micromega"]] "node")
+		let coq_Leaf = lazy (gen_constant_in_modules "Micromega" [["Micromega"]] "leaf")
+		let coq_Empty = lazy (gen_constant_in_modules "Micromega" [["Micromega"]] "empty")
 
 
-let micromega_empty_change env polys1 gl = 
-  let t = 
+let btree_of_array typ a  =
+  let size_of_a = Array.length a in
+  let semi_size_of_a = size_of_a lsr 1 in
+  let node = Lazy.force coq_Node
+		and leaf = Lazy.force coq_Leaf
+  and empty = Lazy.force coq_Empty in
+			(*Term.mkApp (Lazy.force coq_Empty, [| typ |]) in*)
+  let rec aux n =
+    if n > size_of_a 
+    then empty
+    else if  n > semi_size_of_a 
+    then Term.mkApp (leaf, [|  a.(n-1) |])
+    else Term.mkApp (node, [|  aux (2*n); a.(n-1); aux (2*n+1) |])
+  in 
+  aux 1
+*)
+		
+let coq_Node = lazy (Coqlib.gen_constant_in_modules "VarMap" [["VarMap"]] "Node")
+let coq_Leaf = lazy (Coqlib.gen_constant_in_modules "VarMap" [["VarMap"]] "Leaf")
+let coq_Empty = lazy (Coqlib.gen_constant_in_modules "VarMap" [["VarMap"]] "Empty")
+																	
+																	
+let btree_of_array typ a  =
+ let size_of_a = Array.length a in
+  let semi_size_of_a = size_of_a lsr 1 in
+  let node = Lazy.force coq_Node
+		and leaf = Lazy.force coq_Leaf
+  and empty = Term.mkApp (Lazy.force coq_Empty, [| typ |]) in
+  let rec aux n =
+    if n > size_of_a 
+    then empty
+    else if  n > semi_size_of_a 
+    then Term.mkApp (leaf, [| typ; a.(n-1) |])
+    else Term.mkApp (node, [| typ; aux (2*n); a.(n-1); aux (2*n+1) |])
+  in 
+  aux 1
+
+let btree_of_array typ a = 
+	try 
+		btree_of_array typ a
+	with _ -> failwith "btree of array : bug"
+
+let dump_varmap typ env =
+(*	let pos = Lazy.force coq_positive in
+	let t1 = (Term.mkApp (Lazy.force coq_option , [| pos |])) in
+	let t2 = (constant "varmap_type") in
+	let none = Term.mkApp (Lazy.force coq_None,[| pos|]) in
+	let vm = btree_of_array typ (Array.of_list env) in
+  Term.mkApp(Lazy.force coq_pair,[| t1 ; t2 ; none ; vm|]) *)
+	btree_of_array typ (Array.of_list env)
+
+
+let rec pp_varmap o vm = 
+	match vm with
+		| Micromega.Empty -> output_string o "[]"
+		| Micromega.Leaf z -> Printf.fprintf o "[%a]" pp_z  z
+		| Micromega.Node(l,z,r) -> Printf.fprintf o "[%a, %a, %a]" pp_varmap l  pp_z z pp_varmap r
+
+
+let micromega_empty_change cert typ env polys1 gl = 
+ let t = 
     set 
       [ 
-	("__poly", dump_list (Lazy.force coq_Cstr) dump_cstr polys1, Term.mkApp(Lazy.force coq_list,[| Lazy.force coq_Cstr|]));
-	("__varmap", Quote.btree_of_array (Array.of_list env) (Lazy.force coq_Z) , (constant "varmap_type"))
+							("__poly", dump_list (Lazy.force coq_Cstr) dump_cstr polys1, Term.mkApp(Lazy.force coq_list,[| Lazy.force coq_Cstr|]));
+							("__varmap", dump_varmap  (Lazy.force coq_Z)  env , (constant "env"));
+							("__wit" , cert , typ)
       ]  	
       (Term.mkApp(Lazy.force coq_make_impl, 
       [| 
@@ -538,36 +628,67 @@ let micromega_empty_change env polys1 gl =
 	Term.mkVar (Names.id_of_string "__poly"); 
 	constant "False"
       |])) in
+		if debug then (Pp.pp (Printer.prterm  t); Pp.pp_flush ()) ;		
   Tactics.change_in_concl None t gl
 
 
-let micromega_empty prover env ids   polys1 gl = 
+let trim_witness ids polys wit =
+		(* This is pretty complicated to get the indexes right! *)
+		let polys =  (CoqToCaml.list (fun x -> x) polys) in
+		let normalised_polys = assoc_pos_assoc (concatMapi (fun x -> CoqToCaml.list (fun x -> x) (Micromega.Polynomial.normalise x)) polys) in
+		let nats = CoqToCaml.list CoqToCaml.nat (Micromega.indexes wit) in
+
+		let pos = filter_pos nats normalised_polys in
+				(* pos contains a list which cars are used polys indexes - cdr is a list of certificate indexes they generate 
+							- in principle there are certificate indexes that are unused...*)
+		let used_polys = List.rev_map fst pos in
+		let old_indexes = List.fold_right (fun (_,l) acc -> (List.map snd l)@acc) pos [] in
+		let old_new,_  = assoc_pos 0 old_indexes in
+		let polys = CamlToCoq.list (fun x -> x ) (select_pos used_polys polys) in
+		let ids   = select_pos used_polys ids in
+
+				(ids, polys, Micromega.map_cone (fun i -> CamlToCoq.nat (List.assoc (CoqToCaml.nat i) old_new)) wit)
+
+
+ let micromega_empty prover env ids   polys1 gl = 
+  if debug then (print_endline "micromega_empty";
+  let terms = (Micromega.Checkers.normalise_list polys1) in
+    List.iter (pp_expr stdout) (CoqToCaml.list (fun (Micromega.Pair(x,y)) -> x) terms) ; flush stdout);
   match find_witness prover   (Micromega.Checkers.normalise_list polys1) with
     | None -> Tacticals.tclFAIL 0 (Pp.str "Cannot find witness") gl
     | Some res -> 
-	let res' = dump_cone res in
-	  if debug then (pp_cone stdout res ; print_newline () ;flush stdout);
-	(Tacticals.tclTHENSEQ
-	  [
-	    Tactics.generalize (List.map Term.mkVar ids);
-	    micromega_empty_change env polys1 ;
-	    Tactics.intro ; Tactics.intro ;
-	    Tactics.apply (Tacmach.pf_parse_const gl "empty_checkerT_sound") ;
-	    Tactics.constructor_tac (Some 1) 1 (Rawterm.ImplicitBindings [res'])
-	  ]) gl
+							if debug then (pp_cone stdout res ; print_newline () ;flush stdout);
+							let (ids,polys1,res) = trim_witness ids polys1 res in
+							let res' = dump_cone res in
+									if debug then (pp_cone stdout res ; print_newline () ;flush stdout);
+									(Tacticals.tclTHENSEQ
+											[
+												Tactics.generalize (List.map Term.mkVar ids);
+												micromega_empty_change res' (constant "ConeMember") env polys1 ;
+												Tactics.intro ; Tactics.intro ; Tactics.intro;
+												Tactics.apply (Term.mkApp (Tacmach.pf_parse_const gl "empty_checkerT_sound"
+																																								, [| Term.mkVar (Names.id_of_string "__poly") ;
+																																													Term.mkVar (Names.id_of_string "__wit") ;
+																																										|]))	  
+
+(*												Tactics.apply (Tacmach.pf_parse_const gl "empty_checkerT_sound") ;
+												Tactics.constructor_tac (Some 1) 1 (Rawterm.ImplicitBindings [res'])*)
+											]) gl
 
 
 
 
 
 
-let micromega_order_change env  polys1 polys2 gl = 
+
+let micromega_order_change cert typ env  polys1 polys2 gl = 
   Tactics.change_in_concl None
     (set 
       [ 
 	("__poly1", dump_list (Lazy.force coq_Cstr) dump_cstr polys1, Term.mkApp(Lazy.force coq_list,[| Lazy.force coq_Cstr|]));
 	("__poly2", dump_list (Lazy.force coq_Cstr) dump_cstr polys2, Term.mkApp(Lazy.force coq_list,[| Lazy.force coq_Cstr|]));
-	("__varmap", Quote.btree_of_array (Array.of_list env) (Lazy.force coq_Z) , (constant "varmap_type"))
+	("__varmap", dump_varmap  (Lazy.force coq_Z)  env , (constant "env"));
+	("__wit", cert,typ)
       ]  	
 
       (Term.mkApp(Lazy.force coq_make_impl, 
@@ -585,7 +706,10 @@ let micromega_order_change env  polys1 polys2 gl =
   
 
 let micromega_order prover env ids   polys1 polys2  gl = 
-  match witness prover   (Micromega.Checkers.normalise_list polys1) (Micromega.Checkers.negate_list polys2) with
+  if debug then (print_endline "micromega_order";
+				 let terms = (Micromega.Checkers.normalise_list polys2) in
+				   List.iter (pp_expr stdout) (CoqToCaml.list (fun (Micromega.Pair(x,y)) -> x) terms) ; flush stdout);
+    match witness prover   (Micromega.Checkers.normalise_list polys1) (Micromega.Checkers.negate_list polys2) with
     | None -> Tacticals.tclFAIL 0 (Pp.str "Cannot find witness") gl
     | Some res -> 
 	let res' = dump_list (constant "ConeMember") dump_cone res in
@@ -593,11 +717,14 @@ let micromega_order prover env ids   polys1 polys2  gl =
 	(Tacticals.tclTHENSEQ
 	  [
 	    Tactics.generalize (List.map Term.mkVar ids);
-	    micromega_order_change env  polys1 polys2 ;
-	    Tactics.intro ; Tactics.intro ;
-	    Tactics.apply (Tacmach.pf_parse_const gl "order_checkerT_sound") ;
-	    Tactics.constructor_tac (Some 1) 1 (Rawterm.ImplicitBindings [res'])
-	  ]) gl
+	    micromega_order_change res' (Term.mkApp(Lazy.force coq_list,[| constant "ConeMember"|]))  env  polys1 polys2 ;
+	    Tactics.intro ; Tactics.intro ; Tactics.intro;		Tactics.intro ; 
+							Tactics.apply (Term.mkApp (Tacmach.pf_parse_const gl "order_checkerT_sound"
+																																			, [| Term.mkVar (Names.id_of_string "__poly1") ;
+																																								Term.mkVar (Names.id_of_string "__poly2") ;
+																																								Term.mkVar (Names.id_of_string "__wit") ;
+																																					|]))  
+			]) gl
 
 
 
@@ -640,37 +767,39 @@ let dump_q bd1 =
 
 
 let dump_zwitness (var,bd1,c1,bd2,c2) = 
-  Term.mkApp(Lazy.force coq_Witness, [| dump_expr (Lazy.force coq_Z) var ; 
+  Term.mkApp(Lazy.force coq_Build_Witness, [| dump_expr (Lazy.force coq_Z) var ; 
 				       dump_pair (constant "Q") (constant "ConeMember") dump_q dump_cone (Micromega.Pair(bd1,c1)) ; 
 				       dump_pair (constant "Q") (constant "ConeMember") dump_q dump_cone (Micromega.Pair(bd2,c2)) |])
 
 
 let zomicron  gl =
-    let concl = Tacmach.pf_concl gl in
-    let hyps  = Tacmach.pf_hyps_types gl in
-      try
-	let (ids, polys1,polys2,env) = parse_goal Env.empty hyps concl in
-	  (*      (if debug then 
-		  let l = CoqToCaml.list (fun x -> x) polys1 in
-		  List.iter (fun x -> Printf.printf "%a\n" pp_cstr x) l) ;*)
-	let env = Env.elements env in
-	  match polys2 with
-	    | Micromega.Nil  -> 
-		begin
-		  match Certificate.zlinear_prover  (CoqToCaml.list (fun x -> x) (Micromega.Checkers.normalise_list polys1)) with
-		    | None -> Tacticals.tclFAIL 0 (Pp.str "Cannot find witness") gl
-		    | Some res -> 
-			let res' = dump_zwitness res in
-			  (Tacticals.tclTHENSEQ
-			     [
-			       Tactics.generalize (List.map Term.mkVar ids);
-			       micromega_empty_change env polys1 ;
-			       Tactics.intro ; Tactics.intro ;
-			       Tactics.apply (constant "zChecker_sound") ;
-			       Tactics.constructor_tac (Some 1) 1 (Rawterm.ImplicitBindings [res'])
-			     ]) gl
-		end
-	    | _              -> failwith "Bad Logical Fragment (False expected)"
-      with Failure x -> flush stdout ; Pp.pp_flush () ; Tacticals.tclFAIL 0 (Pp.str x) gl
-	| ParseError  -> Tacticals.tclFAIL 0 (Pp.str "Bad logical fragment") gl
+  let concl = Tacmach.pf_concl gl in
+  let hyps  = Tacmach.pf_hyps_types gl in
+    try
+						let (ids, polys1,polys2,env) = parse_goal Env.empty hyps concl in
+								(*      (if debug then 
+																let l = CoqToCaml.list (fun x -> x) polys1 in
+																List.iter (fun x -> Printf.printf "%a\n" pp_cstr x) l) ;*)
+						let env = Env.elements env in
+								match polys2 with
+										| Micromega.Nil  -> 
+													begin
+															match Certificate.zlinear_prover  (CoqToCaml.list (fun x -> x) (Micromega.Checkers.normalise_list polys1)) with
+																	| None -> Tacticals.tclFAIL 0 (Pp.str "Cannot find witness") gl
+																	| Some res -> if debug then print_endline "zomicron" ;
+																				let res' = dump_zwitness res in
+																						(Tacticals.tclTHENSEQ
+																								[
+																									Tactics.generalize (List.map Term.mkVar ids);
+																									micromega_empty_change res' (Lazy.force coq_Witness) env polys1 ;
+																									Tactics.intro ; Tactics.intro ; Tactics.intro;
+																									Tactics.apply (Term.mkApp (constant "zChecker_sound",
+																																																			 [| Term.mkVar (Names.id_of_string "__poly") ;
+																																																							Term.mkVar (Names.id_of_string "__wit") ;
+																																																				|])	 )
+																								]) gl
+													end
+										| _              -> failwith "Bad Logical Fragment (False expected)"
+    with Failure x -> flush stdout ; Pp.pp_flush () ; Tacticals.tclFAIL 0 (Pp.str x) gl
+						| ParseError  -> Tacticals.tclFAIL 0 (Pp.str "Bad logical fragment") gl
 

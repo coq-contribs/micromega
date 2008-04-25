@@ -29,7 +29,7 @@ Proof.
   intros.
   destruct H1.
   destruct H2.
-  destruct (Ztrichotomy z0 0) as [ HH1 | [HH2 | HH3]]; destruct z0; zrelax ; try micmac 2.
+  destruct (Ztrichotomy z0 0) as [ HH1 | [HH2 | HH3]]; destruct z0 ; (try (zrelax ; micmac 2)).
   discriminate.
 Qed.
 
@@ -45,6 +45,7 @@ Proof.
   zrelax ;micmac 2.
 Qed.
 
+(*
 Lemma test : forall x, 2 * x >= 1 -> 2 * x <= 1 -> False.
 Proof.
   intros.
@@ -60,6 +61,7 @@ Proof.
   unfold lower.
   omicron.
 Qed.
+*)
 
 (* In this case, a certificate is made of a pair of inequations, in 1 variable,
    that do not have an integer solution.
@@ -67,10 +69,10 @@ Qed.
    *)
 Require Import QArith.
 Import Polynomial.
-Require Import Ring_normalize.
+Require Import NRing.
 
 Record Witness : Set := {
-  var : polynomial Z; (* this is a variable or a monomial *)
+  var : Expr; (* this is a variable or a monomial *)
   ub  : Q * ConeMember;
   lb  : Q * ConeMember
 }.
@@ -80,12 +82,12 @@ Import ZArith.
 
 (* n/d <= x  -> d*x - n >= 0 *)
 Definition makeLb (v:Expr) (q:Q) : Term :=
-  let (n,d) := q in Build_Cstr  (Pmult (Pconst (Zpos d)) (v)) OpGe (Pconst  n).
+  let (n,d) := q in Build_Cstr  (PEmul (PEc (Zpos d)) (v)) OpGe (PEc  n).
 
 (* x <= n/d  -> d * x <= d  *)
 Definition makeUb (v:Expr) (q:Q) : Term :=
   let (n,d) := q in
-    Build_Cstr  (Pmult (Pconst (Zpos d)) v)  OpLe (Pconst  n).
+    Build_Cstr  (PEmul (PEc (Zpos d)) v)  OpLe (PEc  n).
 
 Require Import List.
 
@@ -108,17 +110,16 @@ Definition zchecker (w:Witness) (l:list Term) : bool :=
 
 Require Import tacticsPerso.
 
-Lemma zChecker_sound : forall t, (exists w, zchecker w t = true) -> forall env, make_impl _ (eval env)  t False.
+Lemma zChecker_sound : forall t w, zchecker w t = true -> forall env, make_impl _ (eval env)  t False.
 Proof.
   intros.
-  destruct H as [w H].
   unfold zchecker in H.
   destruct w.
   destruct ub0 ; destruct lb0.
   flatten_bool.
   apply Refl.make_conj_impl1.
   intro.
-  generalize (Checkers.order_checkerT_sound t (makeUb var0 q :: makeLb var0 q0 :: nil) (@ex_intro _ _ (c0::c::nil) H0) env).
+  generalize (Checkers.order_checkerT_sound t (makeUb var0 q :: makeLb var0 q0 :: nil)  (c0::c::nil) H0 env).
   intros.
   generalize (Refl.make_conj_impl2 _ _ _ _ H2 H).
   simpl.
@@ -142,7 +143,7 @@ Proof.
   compute ; reflexivity.
   generalize (narrow_interval_upper_bound _ _ _ H4 H2).
   intros.
-  omicron.
+  micromega.
   discriminate.
 Qed.
 

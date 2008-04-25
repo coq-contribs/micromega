@@ -10,6 +10,12 @@ Require Import Micromegatac.
 Require Import Ring_normalize.
 Import Polynomial.
 
+Lemma zpol2 : forall x, 2 * x = 1 -> False.
+Proof.
+  intros.
+  omicmac.
+Qed.
+
 
 (* From Laurent Théry *)
 
@@ -334,10 +340,5 @@ Proof.
   micromega.
 Qed.
 
-Lemma zpol2 : forall x, 2 * x = 1 -> False.
-Proof.
-  intros.
-  omicmac.
-Qed.
 
 

@@ -146,23 +146,31 @@ open Utils
 
 let rec dev_form p =
   match p with
-    | Micromega.Pconst z ->  Poly.constant (CoqToCaml.z_big_int z)
-    | Micromega.Pvar v ->  Poly.variable v
-    | Micromega.Pmult(p1,p2) -> 
+    | Micromega.PEc z ->  Poly.constant (CoqToCaml.z_big_int z)
+    | Micromega.PEX v ->  Poly.variable v
+    | Micromega.PEmul(p1,p2) -> 
 	let p1 = dev_form p1 in
 	let p2 = dev_form p2 in
 	let res = Poly.product p1 p2 in
 (*	Printf.fprintf stdout "%a * %a = %a\n" Poly.pp p1 Poly.pp p2 Poly.pp res ;*)
 	res
-    | Micromega.Pplus(p1,p2) -> Poly.addition (dev_form p1) (dev_form p2)
+    | Micromega.PEadd(p1,p2) -> Poly.addition (dev_form p1) (dev_form p2)
 (*    | Minus(p1,p2) -> Poly.addition (dev_form p1) (Poly.uminus (dev_form p2))*)
-    | Micromega.Popp p ->  Poly.uminus (dev_form p)
+    | Micromega.PEopp p ->  Poly.uminus (dev_form p)
+				| Micromega.PEsub(p1,p2) ->  Poly.addition (dev_form p1) (Poly.uminus (dev_form p2))
+				| Micromega.PEpow(p,n)   ->  
+							let p = dev_form p in
+							let n = CoqToCaml.n n in
+							let rec pow n = if n = 0 then Poly.constant (CoqToCaml.z_big_int (Micromega.Zpos Micromega.XH))
+							else Poly.product p (pow (n-1)) in
+								pow n
+
 
 let monomial_to_polynomial mn = 
   Monomial.fold 
-    (fun v i acc -> Micromega.Pmult(Micromega.Polynomial.power (Micromega.Pvar v) (CamlToCoq.z i),acc)) 
+    (fun v i acc -> Micromega.PEmul(Micromega.PEpow (Micromega.PEX v ,CamlToCoq.n i),acc)) 
     mn 
-    (Micromega.Pconst (Micromega.Zpos Micromega.XH))
+    (Micromega.PEc (Micromega.Zpos Micromega.XH))
     
 let rec fixpoint f x =
   let y' = f x in
@@ -177,6 +185,41 @@ let rec rec_simpl_cone = function
 
 let simplify_cone c = fixpoint rec_simpl_cone  c
 
+type cone_prod = Const of cone | Ideal of cone *cone | Mult of cone * cone | Other of cone
+and cone =   Micromega.Polynomial.coq_ConeMember
+
+
+
+let factorise_linear_cone c =
+
+		let rec cone_list  c l = 
+				match c with
+						| S_Add (x,r) -> cone_list  r (x::l)
+						|  _        ->  c :: l in
+
+		let factorise c1 c2 =
+				match c1 , c2 with
+						| S_Ideal(x,y) , S_Ideal(x',y') -> if x = x' then Some (S_Ideal(x, S_Add(y,y'))) else None
+						| S_Mult(x,y) , S_Mult(x',y') -> if x = x' then Some (S_Mult(x, S_Add(y,y'))) else None
+						|  _     -> None in
+
+		let rec rebuild_cone l pending  =
+				match l with
+						| [] -> (match pending with
+																	| None -> S_Z
+																	| Some p -> p
+														)
+						| e::l -> 
+									(match pending with
+												| None -> rebuild_cone l (Some e) 
+												| Some p -> (match factorise p e with
+																											| None -> S_Add(p, rebuild_cone l (Some e))
+																											| Some f -> rebuild_cone l (Some f) )
+									) in
+
+				(rebuild_cone (List.sort Pervasives.compare (cone_list c [])) None)
+
+
 
 (* The binding with Fourier might be a bit obsolete -- how does it handle equalities ? *)
 
@@ -189,64 +232,38 @@ let simplify_cone c = fixpoint rec_simpl_cone  c
     bi >= 0
     Sum bi + c >= 1
    This is a linear problem: each monomial is considered as a variable.
-   Hence, we can use fourier. *)
+   Hence, we can use fourier.
 
-open Fourier_num
-
-(* let m be a monomial
-   and l a list of polynomial (developped form)
-   We generate the constraint:
-   _
-   \
-   /_ l(m) = 0 if mn is not the constant monomial
-
-   _ 
-   \
-   /_ l(cst) + c = 0
+   The variable c is at index 0
 *)
+
+open Fourier_alt
+(*module Fourier = Fourier(Vector.VList)(SysSet(Vector.VList))*)
+module Fourier = Fourier(Vector.VSparse)(SysSet(Vector.VSparse))
+module Vect = Fourier.Vect
+open Fourier.Cstr
+
+(* fold_left followed by a rev ! *)
 
 let constrain_monomial mn l  = 
   let coeffs = List.fold_left (fun acc p -> Big_int (Poly.get mn p)::acc) [] l in
   if mn = Monomial.const
   then  
-    { coeffs = (Big_int unit_big_int):: (List.rev coeffs) ; op = Eq ; cst = Big_int zero_big_int  }
+    { coeffs = Vect.from_list ((Big_int unit_big_int):: (List.rev coeffs)) ; op = Eq ; cst = Big_int zero_big_int  }
   else
-    { coeffs = (Big_int zero_big_int):: (List.rev coeffs) ; op = Eq ; cst = Big_int zero_big_int  }
+    { coeffs = Vect.from_list ((Big_int zero_big_int):: (List.rev coeffs)) ; op = Eq ; cst = Big_int zero_big_int  }
 
-
-let rec list i n = 
-  if n = 0
-  then []
-  else (i)::(list i (n-1))
-
-
-let zeros n = list (Big_int zero_big_int) n
-
-
-let rec id_matrix n = 
-  if n = 0
-  then []
-  else if n = 1
-  then [ [Big_int unit_big_int] ] 
-  else ((Big_int unit_big_int)::(zeros (n-1))) :: (List.map (fun l -> (Big_int zero_big_int)::l) (id_matrix (n-1)))
-
-
-let rec zip l1 l2 = 
-  match l1 with
-    | [] -> []
-    | e1::l1 -> match l2 with
-	| [] -> []
-	| e2::l2 -> (e1,e2) :: (zip l1 l2)
-
+	   
 let positivity l = 
-  List.fold_right (fun (pol,redop) res  ->
-		     match redop with
-		       | Equal -> res
-		       | _     -> {coeffs = (Big_int zero_big_int) :: pol ; op = Ge ; cst = Big_int zero_big_int}::res)
-    (zip (id_matrix (List.length l)) (List.map snd l)) []
+  let rec xpositivity i l = 
+	match l with
+	  | [] -> []
+	  | (_,Equal)::l -> xpositivity (i+1) l
+	  | (_,_)::l -> {coeffs = Vect.update (i+1) (fun _ -> Int 1) Vect.null ; op = Ge ; cst = Int 0 }  :: (xpositivity (i+1) l)
+  in
+	xpositivity 0 l
 
-open Micromega.Polynomial
-open Fourier_num
+
 
 (* If the certificate includes at least one strict inequality, the obtained polynomial can also be 0 *)
 let build_linear_system l =
@@ -256,10 +273,10 @@ let build_linear_system l =
   (* For each monomial, compute a constraint *)
   let s0 = Poly.fold (fun mn _ res -> (constrain_monomial mn l')::res) monomials [] in
   (* I need at least something strictly positive *)
-  let strict = {coeffs = (Big_int unit_big_int)::(List.map (fun (x,y) -> match y with Strict -> Big_int unit_big_int | _ -> Big_int zero_big_int) l);
+  let strict = {coeffs = Vect.from_list ((Big_int unit_big_int)::(List.map (fun (x,y) -> match y with Strict -> Big_int unit_big_int | _ -> Big_int zero_big_int) l));
 		op = Ge ; cst = Big_int unit_big_int } in
   (* Add the positivity constraint *)
-    {coeffs = [Big_int unit_big_int] ; op = Ge ; cst = Big_int zero_big_int}::(strict::(positivity l)@s0)
+    {coeffs = Vect.from_list ([Big_int unit_big_int]) ; op = Ge ; cst = Big_int zero_big_int}::(strict::(positivity l)@s0)
 
 
 let make_certificate cert li = 
@@ -278,19 +295,20 @@ let make_certificate cert li =
 		  | [] -> failwith "make_certificate(1)"
 		  | i::l ->  let r = scalar_product cert l in
 		      match compare_big_int c  zero_big_int with
-			| -1 -> S_Add (S_Ideal (Micromega.Pconst ( Utils.CamlToCoq.bigint c), S_In (CamlToCoq.nat i)), r)
+			| -1 -> S_Add (S_Ideal (Micromega.PEc ( Utils.CamlToCoq.bigint c), S_In (CamlToCoq.nat i)), r)
 			| 0  -> r
 			| _ ->  S_Add (S_Mult (S_Pos (Utils.CamlToCoq.positive_big_int c),S_In (CamlToCoq.nat i)),r) in
-	    Some (simplify_cone (S_Add (cst, scalar_product cert' li)))
+
+	    Some ((factorise_linear_cone (simplify_cone (S_Add (cst, scalar_product cert' li)))))
 
 
 
 
 let raw_certificate l = 
   let sys = build_linear_system l in
-    match optimise sys with
+    match Fourier.optimise (List.fold_left (fun sys e -> Fourier.Bag.add e sys) Fourier.Bag.empty sys) with
       | None -> None
-      | Some cert ->  Some (rats_to_ints cert)
+      | Some cert ->  Some (rats_to_ints (Vect.to_list cert))
 
 
 let simple_linear_prover l =
@@ -313,18 +331,18 @@ let linear_prover l  =
 	    | e::l -> let (Micromega.Pair(c,_),i) = e in
 	      let p = dev_form c in
 	      let cone_of_big_int e = 
-		match compare_big_int e zero_big_int with
-		  | 1 -> S_Pos (Utils.CamlToCoq.positive_big_int e) 
-		  | _ -> failwith "cone_of_big_int"
+									match compare_big_int e zero_big_int with
+											| 1 -> S_Pos (Utils.CamlToCoq.positive_big_int e) 
+											| _ -> failwith "cone_of_big_int"
 	      in
-		match raw_certificate ((p,Strict)::lc) , raw_certificate ((Poly.uminus p,Strict)::lc) with
-		  | Some (cst::cdiff::c), Some (cst'::diff'::c') -> 
-		      let mono = S_Mult(S_Mult (cone_of_big_int cdiff, cone_of_big_int diff'),
-					(S_Monoid (CamlToCoq.list Utils.CamlToCoq.nat [i]))) in
-			(match make_certificate (cst::c) li , make_certificate (cst'::c') li with
-			|    Some c1 , Some c2 -> Some (simplify_cone (S_Add(mono, S_Mult(c1 , c2))))
-			|   _ -> None)
-		  |  _  -> find_cert l in
+									match raw_certificate ((p,Strict)::lc) , raw_certificate ((Poly.uminus p,Strict)::lc) with
+											| Some (cst::cdiff::c), Some (cst'::diff'::c') -> 
+														let mono = S_Mult(S_Mult (cone_of_big_int cdiff, cone_of_big_int diff'),
+																																(S_Monoid (CamlToCoq.list Utils.CamlToCoq.nat [i]))) in
+																(match make_certificate (cst::c) li , make_certificate (cst'::c') li with
+																			|    Some c1 , Some c2 -> Some (simplify_cone (S_Add(mono, S_Mult(c1 , c2))))
+																			|   _ -> None)
+											|  _  -> find_cert l in
 	    find_cert l1
 
 
@@ -348,28 +366,30 @@ struct
   open Micromega
 
   let rec expr_to_term = function
-    |  Pconst z ->  Const  (Big_int (CoqToCaml.z_big_int z))
-    |  Pvar v ->  Var ("x"^(string_of_int (CoqToCaml.index v)))
-    |  Pmult(p1,p2) -> 
+    |  PEc z ->  Const  (Big_int (CoqToCaml.z_big_int z))
+    |  PEX v ->  Var ("x"^(string_of_int (CoqToCaml.index v)))
+    |  PEmul(p1,p2) -> 
 	 let p1 = expr_to_term p1 in
 	 let p2 = expr_to_term p2 in
-	 let res = Mul(p1,p2) in
+	 let res = Mul(p1,p2) in 	   res
 (*	Printf.fprintf stdout "%a * %a = %a\n" Poly.pp p1 Poly.pp p2 Poly.pp res ;*)
-	   res
-    |  Pplus(p1,p2) -> Add(expr_to_term p1, expr_to_term p2)
+
+    | PEadd(p1,p2) -> Add(expr_to_term p1, expr_to_term p2)
+				| PEsub(p1,p2) -> Sub(expr_to_term p1, expr_to_term p2)
+				| PEpow(p,n)   -> Pow(expr_to_term p , CoqToCaml.n n)
 	 (*    | Minus(p1,p2) -> Poly.addition (dev_form p1) (Poly.uminus (dev_form p2))*)
-    |  Popp p ->  Opp (expr_to_term p)
-	 
+    |  PEopp p ->  Opp (expr_to_term p)
+
 	 
   let rec term_to_expr = function
-    | Const n ->  Pconst (CamlToCoq.bigint (big_int_of_num n))
-    | Zero   ->  Pconst ( Z0)
-    | Var s   ->  Pvar (CamlToCoq.index (int_of_string (String.sub s 1 (String.length s - 1))))
-    | Mul(p1,p2) ->  Pmult(term_to_expr p1, term_to_expr p2)
-    | Add(p1,p2) ->   Pplus(term_to_expr p1, term_to_expr p2)
-    | Opp p ->   Popp (term_to_expr p)
-    | Pow(t,n) ->  power (term_to_expr t) (CamlToCoq.z n)
-    | Sub(t1,t2) ->  Pplus (term_to_expr t1,  Popp (term_to_expr t2))
+    | Const n ->  PEc (CamlToCoq.bigint (big_int_of_num n))
+    | Zero   ->  PEc ( Z0)
+    | Var s   ->  PEX (CamlToCoq.index (int_of_string (String.sub s 1 (String.length s - 1))))
+    | Mul(p1,p2) ->  PEmul(term_to_expr p1, term_to_expr p2)
+    | Add(p1,p2) ->   PEadd(term_to_expr p1, term_to_expr p2)
+    | Opp p ->   PEopp (term_to_expr p)
+    | Pow(t,n) ->  PEpow (term_to_expr t,CamlToCoq.n n)
+    | Sub(t1,t2) ->  PEsub (term_to_expr t1,  term_to_expr t2)
     | _ -> failwith "term_to_expr: not implemented"
 
   let term_to_expr e =
@@ -486,11 +506,11 @@ let  term_of_cert l pos =
 
 
 
-let rec canonical_sum_to_string = function
-  | Micromega.Nil_monom -> "Nil_monom"
+let rec canonical_sum_to_string = function s -> failwith "not implemented"
+(*  | Micromega.Nil_monom -> "Nil_monom"
   | Micromega.Cons_monom (a,varlist ,sum) -> Printf.sprintf "Cons_monom(%i,%s)" (CoqToCaml.z a) (canonical_sum_to_string  sum)
   | Micromega.Cons_varlist(varlist, sum)  -> Printf.sprintf "Cons_varlist(_,%s)"  (canonical_sum_to_string  sum)
-
+*)
 let print_canonical_sum m = Format.print_string (canonical_sum_to_string m)
 
 let print_list_term l = 
@@ -611,37 +631,46 @@ let real_nonlinear_prover d l =
 
 
 let pure_sos  l =
-    let l = zip l (0-- (length l -1)) in
-    let (lt,i) =  (List.find (fun (x,_) -> snd' x = Micromega.Some Strict) l) in
-    let plt = poly_neg (poly_of_term (expr_to_term (fst' lt))) in
-    let (n,polys) = sumofsquares plt in (* n * (ci * pi^2) *)
-    let pos = Product (Rational_lt n, itlist (fun (c,p) rst -> Sum (Product (Rational_lt c, Square (term_of_poly p)), rst)) polys (Rational_lt num_0)) in
-    let proof = Sum(Axiom_lt i, pos) in
-    let s,proof' = scale_certificate proof in
-    let cert  = snd (cert_of_pos proof') in
-      Some cert
+		(* If there is no strict inequality, I should nonetheless be able to try something - over Z  > is equivalent to -1  >= *)
+		try 
+				let l = zip l (0-- (length l -1)) in
+				let (lt,i) =  (List.find (fun (x,_) -> snd' x = Micromega.Some Strict) l) in
+				let plt = poly_neg (poly_of_term (expr_to_term (fst' lt))) in
+				let (n,polys) = sumofsquares plt in (* n * (ci * pi^2) *)
+				let pos = Product (Rational_lt n, itlist (fun (c,p) rst -> Sum (Product (Rational_lt c, Square (term_of_poly p)), rst)) polys (Rational_lt num_0)) in
+				let proof = Sum(Axiom_lt i, pos) in
+				let s,proof' = scale_certificate proof in
+				let cert  = snd (cert_of_pos proof') in
+						Some cert
+		with
+						Not_found -> (* This is no strict inequality *) None
 
 (* zprover.... *)
 
 (* I need to gather the set of variables --->
    Then go for fold 
-   Une fois que j'ai un interval -> je dois trouver un certificat => 2 autres fouriers
+   Once I have an interval, I need a certificate : 2 other fourier elims.
+   (I could probably get the certificate directly as it is done in the fourier contrib.)
 *)
 
 let make_linear_system l =
   let l' = List.map fst l in
   let monomials = List.fold_left (fun acc p -> Poly.addition p acc) (Poly.constant zero_big_int) l' in
   let monomials = Poly.fold (fun mn _ l -> if mn = Monomial.const then l else mn::l) monomials [] in
-    (List.map (fun (c,op) -> {coeffs = (List.map (fun mn -> Big_int (Poly.get mn c)) monomials) ; op = op ; cst = minus_num (Big_int (Poly.get Monomial.const c))}) l,monomials)
+    (List.map (fun (c,op) -> {coeffs =
+							   Vect.from_list (List.map (fun mn -> Big_int (Poly.get mn c)) monomials) ; 
+							  op = op ; cst = minus_num (Big_int (Poly.get Monomial.const c))}) l,monomials)
 
 
 open Interval 
-let pplus x y = Micromega.Pplus(x,y)
-let pmult x y = Micromega.Pmult(x,y)
-let pconst x = Micromega.Pconst x
-let popp x = Micromega.Popp x
+let pplus x y = Micromega.PEadd(x,y)
+let pmult x y = Micromega.PEmul(x,y)
+let pconst x = Micromega.PEc x
+let popp x = Micromega.PEopp x
 
-let zlinear_prover l =
+let debug = false
+
+let zlinear_prover l = 
   (* get rid of  <> and relax > *)
   let ll = List.fold_right (fun (Micromega.Pair(e,k)) r -> match k with 
 			       Micromega.None -> r  
@@ -649,7 +678,7 @@ let zlinear_prover l =
 					    | Strict | NonStrict -> Ge (* Loss of precision -- weakness of fourier*)
 					    | Equal              -> Eq) :: r) l [] in
   let (sys,var) = make_linear_system ll in
-    match find_Q_interval sys with
+    match Fourier.find_Q_interval (List.fold_left (fun sys e -> Fourier.Bag.add e sys) Fourier.Bag.empty sys) with
       | None -> None
       | Some (Itv(Bd lb, Bd ub),i) -> (* lb <= x <= ub *)
 	  if debug then (Printf.printf "[%s;%s]" (string_of_num lb) (string_of_num ub); flush stdout);
