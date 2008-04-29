@@ -1,19 +1,19 @@
-(********************************************************************)
-(*                                                                  *)
-(* Micromega:A reflexive tactics  using the Positivstellensatz      *)
-(*                                                                  *)
-(*  Frédéric Besson (Irisa/Inria) 2006				    *)
-(*                                                                  *)
-(********************************************************************)
+(** Header **)
+
 Require Import ZArith.
 Require Import Micromegatac.
 Require Import Ring_normalize.
-Import Polynomial.
+Open Scope Z_scope.
+Require Import ZMicromega.
+Require Import VarMap.
 
-Lemma zpol2 : forall x, 2 * x = 1 -> False.
+(* false in Q : x=1/2 and n=1 *)
+
+Lemma not_so_easy : forall x n : Z,
+  2*x + 1 <= 2 *n -> x <= n-1.
 Proof.
   intros.
-  omicmac.
+  omicron. 
 Qed.
 
 
@@ -21,7 +21,8 @@ Qed.
 
 Lemma some_pol : forall x, 4 * x ^ 2 + 3 * x + 2 >= 0.
 Proof.
-  intros; sos.
+  intros. 
+  micromega. 
 Qed.
 
 
@@ -35,9 +36,11 @@ Qed.
 Lemma plus_minus : forall x y, 
   0 = x + y -> 0 =  x -y -> 0 = x /\ 0 = y.
 Proof.
-  intros. 
+  intros.
   omicron.
 Qed.
+
+
 
 Lemma mplus_minus : forall x y, 
   x + y >= 0 -> x -y >= 0 -> x^2 - y^2 >= 0.
@@ -87,15 +90,10 @@ Proof.
   generalize (H8 _ _ _ (conj H5 H4)).
   generalize (H10 _ _ _ (conj H5 H4)).
   generalize rho_ge.
-  intros.
-  assert (C p t - D q t <= 0 \/ 0 <= C p t - D q t).
-  omicmac.
-  assert (C p s - D q s <= 0 \/ 0 <= C p s - D q s).
-  omicmac.
-  intuition micromega.
+  micromega.
 Qed.
 
-(* From D. Pichardie (sign analysis) *)
+(* Rule of signs *)
 
 Lemma sign_pos_pos: forall x y,
   x > 0 -> y > 0 -> x*y > 0.
@@ -157,7 +155,7 @@ Qed.
 Lemma binomial : forall x y, (x+y)^2 = x^2 + 2*x*y + y^2.
 Proof.
   intros.
-  micromega.
+  omicron.
 Qed.
 
 Lemma product : forall x y, x >= 0 -> y >= 0 -> x * y >= 0.
@@ -180,12 +178,13 @@ Proof.
 Qed.
 
 (* Found in Parrilo's talk *)
-(* BUG?: certificate too big *)
+(* BUG?: certificate with **very** big coefficients *)
 Lemma parrilo_ex : forall x y, x - y^2 + 3 >= 0 -> y + x^2 + 2 = 0 -> False.
 Proof.
   intros.
   micromega.
 Qed.
+
 
 (* from hol_light/Examples/sos.ml *)
 
@@ -223,7 +222,7 @@ Lemma hol_light5 : forall x y,
       x ^ 2 + (y - 1) ^ 2 < 1 \/
       (x - 1) ^ 2 + (y - 1) ^ 2 < 1.
 Proof.
-intros; micmac.
+intros; micromega.
 Qed.
 
 
@@ -232,7 +231,7 @@ Lemma hol_light7 : forall x y z,
  0<= x /\ 0 <= y /\ 0 <= z /\ x + y + z <= 3
   -> x * y + x * z + y * z >= 3 * x * y * z.
 Proof.
-intros ; intuition ; micromega.
+intros ; micromega.
 Qed.
 
 Lemma hol_light8 : forall x y z,
@@ -251,13 +250,13 @@ Qed.
 Lemma hol_light10 : forall x y,
  x >= 1 /\ y >= 1 -> x * y >= x + y - 1.
 Proof.
-  intros ; intuition ;micromega.
+  intros ; micromega.
 Qed.
 
 Lemma hol_light11 : forall x y,
  x > 1 /\ y > 1 -> x * y > x + y - 1.
 Proof.
-  intros ; intuition;micromega.
+  intros ; micromega.
 Qed.
 
 
@@ -269,14 +268,14 @@ Lemma hol_light12: forall x y z,
 Proof.
   intros x y z ; set (e:= (125841 / 50000)).
   compute in e.
-  unfold e ; intros ; intuition ; micromega.
+  unfold e ; intros ; micromega.
 Qed.
 
 Lemma hol_light14 : forall x y z,
  2 <= x /\ x <= 4 /\ 2 <= y /\ y <= 4 /\ 2 <= z /\ z <= 4
   -> 12 <= 2 * (x * z + x * y + y * z) - (x * x + y * y + z * z).
 Proof.
-  intros ; intuition ; micromega.
+  intros ;micromega.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -287,20 +286,20 @@ Lemma hol_light16 : forall x y,
   0 <= x /\ 0 <= y /\ (x * y = 1)
    -> x + y <= x ^ 2 + y ^ 2.
 Proof.
-  intros ; intuition ; micromega.
+  intros ; micromega.
 Qed.
 
 Lemma hol_light17 : forall x y,
   0 <= x /\ 0 <= y /\ (x * y = 1)
    -> x * y * (x + y) <= x ^ 2 + y ^ 2.
 Proof.
-  intros ; intuition ; micromega.
+  intros ; micromega.
 Qed.
 
 Lemma hol_light18 : forall x y,
   0 <= x /\ 0 <= y -> x * y * (x + y) ^ 2 <= (x ^ 2 + y ^ 2) ^ 2.
 Proof.
-  intros ; intuition ; micromega.
+  intros ; micromega.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -309,13 +308,12 @@ Qed.
 
 Lemma hol_light19 : forall m n, 2 * m + n = (n + m) + m.
 Proof.
-  intros ; micromega.
+  intros ; omicron.
 Qed.
 
 Lemma hol_light22 : forall n, n >= 0 -> n <= n * n.
 Proof.
   intros.
-  zrelax.
   micromega.
 Qed.
 
@@ -325,15 +323,17 @@ Lemma hol_light24 : forall x1 y1 x2 y2, x1 >= 0 -> x2 >= 0 -> y1 >= 0 -> y2 >= 0
                 -> (x1 + y1 = x2 + y2).
 Proof.
   intros.
-  zrelax;  micromega.
+  micromega.
 Qed.
 
 Lemma motzkin' : forall x y, (x^2+y^2+1)*(x^2*y^4 + x^4*y^2 + 1 - 3*x^2*y^2) >= 0.
 Proof.
-  intros;sos.
+  intros ; sos.
 Qed.
 
-Lemma motzkin : forall x y, (x^2*y^4 + x^4*y^2 + 1 - 3*x^2*y^2) >= 0.
+
+
+Lemma motzkin : forall x y, (x^2*y^4 + x^4*y^2 + 1 - 3*x^2*y^2)  >= 0.
 Proof.
   intros.
   generalize (motzkin' x y).
@@ -341,4 +341,6 @@ Proof.
 Qed.
 
 
-
+(* Local Variables: *)
+(* coq-prog-name:"/Users/fbesson/sources/coq-trunk/contrib/micromega/micromega.opt" "-compile" "-I" ".." *)
+(* End: *)

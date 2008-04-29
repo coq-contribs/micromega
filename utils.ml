@@ -1,11 +1,4 @@
-(********************************************************************)
-(*                                                                  *)
-(* Micromega:A reflexive tactics  using the Positivstellensatz      *)
-(*                                                                  *)
-(*  Frédéric Besson (Irisa/Inria) 2006				    *)
-(*                                                                  *)
-(********************************************************************)
-let debug = false
+(** Header **)let debug = false
 
 let fst' (Micromega.Pair(x,y)) = x
 let snd' (Micromega.Pair(x,y)) = y
@@ -162,6 +155,9 @@ struct
     match l with
       | Nil -> []
       | Cons(e,l) -> (elt e)::(list elt l)
+
+  let q_to_num {qnum = x ; qden = y} = Big_int (z_big_int x) // (Big_int (z_big_int (Zpos y)))
+   
 end
 
 
@@ -179,14 +175,17 @@ struct
     else if n land 1 = 1 then XI (positive (n lsr 1))
     else  XO (positive (n lsr 1))
 
-		let  n nt = 
-			if nt < 0 
-			then assert false
-			else if nt = 0 then N0
-			else Npos (positive nt)
+  let  n nt = 
+   if nt < 0 
+   then assert false
+   else if nt = 0 then N0
+   else Npos (positive nt)
 
 
-		let rec index  n =
+			 
+
+    
+  let rec index  n =
     if n=1 then XH
     else if n land 1 = 1 then XI (index (n lsr 1))
     else  XO (index (n lsr 1))
@@ -232,6 +231,9 @@ struct
       | 0 -> Z0
       | 1 -> Zpos (positive_big_int x)
       | _ -> Zneg (positive_big_int (minus_big_int x))
+
+		let q n = 
+			{Micromega.qnum = bigint (numerator n) ; Micromega.qden = positive_big_int (denominator n)}
 
 
   let list elt l = List.fold_right (fun x l -> Cons(elt x, l)) l Nil

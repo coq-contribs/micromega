@@ -1806,8 +1806,8 @@ let term_of_sos (pr,sqs) =
   else Product(pr,end_itlist (fun a b -> Sum(a,b)) (map term_of_sqterm sqs));;
 
 let rec deepen f n =
-  try print_string "Searching with depth limit ";
-      print_int n; print_newline(); f n
+  try (*print_string "Searching with depth limit ";
+      print_int n; print_newline();*) f n
   with Failure _ -> deepen f (n + 1);;
 
 

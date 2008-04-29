@@ -1,4 +1,4 @@
-(********************************************************************)
+(** Header **)(********************************************************************)
 (*                                                                  *)
 (* Micromega:A reflexive tactics  using the Positivstellensatz      *)
 (*                                                                  *)
@@ -26,19 +26,19 @@ Section MakeVarMap.
   | Leaf : A -> t 
   | Node : t  -> A -> t  -> t .
   
-  Fixpoint find  (p:positive) (vm : t ) {struct vm} : A :=
+  Fixpoint find   (vm : t ) (p:positive) {struct vm} : A :=
     match vm with
       | Empty => default
       | Leaf i => i
       | Node l e r => match p with
                         | xH => e
-                        | xO p => find p l
-                        | xI p => find p r
+                        | xO p => find l p
+                        | xI p => find r p
                       end
     end.
 
  (* an off_map (a map with offset) offers the same functionalites  as /contrib/setoid_ring/BinList.v - it is used in NRing.v *)
-
+(*
   Definition off_map  :=  (option positive *t )%type.
 
 
@@ -58,7 +58,9 @@ Section MakeVarMap.
                   end%positive in
       find  idx m.
 
+
   Definition hd  (l:off_map) := nth  xH l.
+
 
   Definition tail (l:off_map ) := jump xH l.
 
@@ -244,7 +246,7 @@ Section MakeVarMap.
     reflexivity.
   Qed.
 
-
+*)
 
 End MakeVarMap.
 

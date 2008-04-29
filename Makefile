@@ -67,35 +67,46 @@ PP:=-pp "$(CAMLBIN)$(CAMLP4)o -I . -I $(COQTOP)/parsing $(CAMLP4EXTEND) $(GRAMMA
 #                                 #
 ###################################
 
-VFILES:=tacticsPerso.v\
-  Util.v\
-  NRing.v\
+VFILES:=Refl.v\
   VarMap.v\
-  Refl.v\
-  CheckerMaker.v\
-  example.v
+  EnvRing.v\
+  Env.v\
+  OrderedRing.v\
+  ZCoeff.v\
+  RingMicromega.v\
+  ZMicromega.v\
+  QMicromega.v\
+  RMicromega.v\
+  Tauto.v
 VOFILES:=$(VFILES:.v=.vo)
 GLOBFILES:=$(VFILES:.v=.glob)
 VIFILES:=$(VFILES:.v=.vi)
 GFILES:=$(VFILES:.v=.g)
 HTMLFILES:=$(VFILES:.v=.html)
 GHTMLFILES:=$(VFILES:.v=.g.html)
-MLFILES:=sos.ml\
-  certificate.ml\
-  fourier_alt.ml\
-  coq_micromega.ml\
-  micromega.ml\
-  utils.ml
+MLFILES:=
 CMOFILES:=$(MLFILES:.ml=.cmo)
 
 all: $(VOFILES) $(CMOFILES) micromega.opt\
-  Micromega.vo Micromega.glob micromega.ml micromega.mli\
-  preMicromegatac.vo\
-  Zpol.vo\
-  Micromegatac.vo\
   micromega.cmxa\
+  Extraction.vo Extraction.glob micromega.ml micromega.mli\
+  Micromegatac.vo\
   utils.cmx\
-  g_micromega.cmx
+  g_micromega.cmx\
+  certificate.cmx\
+  coq_micromega.cmx\
+  test\
+  test/example.vo\
+  test/qexample.vo\
+  test/bertot.vo\
+  test/square.vo\
+  test/zomicron.vo\
+  test/rexample.vo\
+  test/heap3_vcgen_25.vo\
+  micromega.cmx\
+  sos.cmx\
+  mfourier.cmx\
+  vector.cmx
 spec: $(VIFILES)
 
 gallina: $(GFILES)
@@ -125,26 +136,62 @@ all-gal.ps: $(VFILES)
 micromega.opt: micromega.cmxa
 	$(COQBIN)/coqmktop -opt -o micromega.opt nums.cmxa micromega.cmxa
 
-Micromega.vo Micromega.glob micromega.ml micromega.mli: Micromega.v Util.vo Refl.vo CheckerMaker.vo
-	$(COQC) -dump-glob Micromega.glob $(COQDEBUG) $(COQFLAGS) Micromega
+micromega.cmxa: coq_micromega.cmx g_micromega.cmx micromega.cmx utils.cmx  mfourier.cmx vector.cmx sos.cmx certificate.cmx
+	$(CAMLOPTLINK) -a -o  micromega.cmxa utils.cmx vector.cmx mfourier.cmx micromega.cmx sos.cmx certificate.cmx coq_micromega.cmx g_micromega.cmx
 
-preMicromegatac.vo: preMicromegatac.v micromega.opt
-	./micromega.opt $(COQLIBS) -compile preMicromegatac
+Extraction.vo Extraction.glob micromega.ml micromega.mli: ZMicromega.vo QMicromega.vo RMicromega.vo Extraction.v
+	$(COQC) -dump-glob Extraction.glob $(COQDEBUG) $(COQFLAGS) Extraction
 
-Zpol.vo: Zpol.v
-	./micromega.opt $(COQLIBS) -compile Zpol
-
-Micromegatac.vo: preMicromegatac.vo Zpol.vo Micromegatac.v micromega.opt
-	./micromega.opt $(COQLIBS) -compile Micromegatac
-
-micromega.cmxa: coq_micromega.cmx g_micromega.cmx micromega.cmx utils.cmx  fourier_alt.cmx vector.cmx sos.cmx certificate.cmx
-	$(CAMLOPTLINK) -a -o  micromega.cmxa utils.cmx vector.cmx fourier_alt.cmx micromega.cmx sos.cmx certificate.cmx coq_micromega.cmx g_micromega.cmx
+Micromegatac.vo: ZMicromega.vo Micromegatac.v micromega.opt
+	./micromega.opt $(COQDEBUG) $(COQFLAGS) -compile Micromegatac
 
 utils.cmx: utils.ml micromega.cmx
 	$(CAMLOPTC) $(ZDEBUG) $(ZFLAGS) $(PP) $<
 
 g_micromega.cmx: g_micromega.ml4 coq_micromega.cmx
 	$(CAMLOPTC) $(ZDEBUG) $(ZFLAGS) $(PP) -impl $<
+
+certificate.cmx: certificate.ml micromega.cmx utils.cmx sos.cmx mfourier.cmx
+	$(CAMLOPTC) $(ZDEBUG) $(ZFLAGS) $(PP) $<
+
+coq_micromega.cmx: coq_micromega.ml micromega.cmx utils.cmx certificate.cmx
+	$(CAMLOPTC) $(ZDEBUG) $(ZFLAGS) $(PP) $<
+
+test: test/example.vo test/bertot.vo test/square.vo test/zomicron.vo test/qexample.vo test/rexample.vo
+	
+
+test/example.vo: micromega.opt test/example.v ./Micromegatac.vo ./ZMicromega.vo ./VarMap.vo
+	time ./micromega.opt $(COQDEBUG) $(COQFLAGS) -compile test/example
+
+test/qexample.vo: micromega.opt test/qexample.v ./Micromegatac.vo
+	time ./micromega.opt $(COQDEBUG) $(COQFLAGS) -compile test/qexample
+
+test/bertot.vo: micromega.opt test/bertot.v
+	time ./micromega.opt $(COQDEBUG) $(COQFLAGS) -compile test/bertot
+
+test/square.vo: micromega.opt test/square.v
+	time ./micromega.opt $(COQDEBUG) $(COQFLAGS) -compile test/square
+
+test/zomicron.vo: micromega.opt test/zomicron.v
+	time ./micromega.opt $(COQDEBUG) $(COQFLAGS) -compile test/zomicron
+
+test/rexample.vo: micromega.opt test/rexample.v ./Micromegatac.vo
+	time ./micromega.opt $(COQDEBUG) $(COQFLAGS) -compile test/rexample
+
+test/heap3_vcgen_25.vo: micromega.opt test/heap3_vcgen_25.v ./Micromegatac.vo
+	time ./micromega.opt $(COQDEBUG) $(COQFLAGS) -compile test/heap3_vcgen_25
+
+micromega.cmx: micromega.ml micromega.cmi
+	$(CAMLOPTC) $(ZDEBUG) $(ZFLAGS) $(PP) $<
+
+sos.cmx: sos.ml
+	$(CAMLOPTC) $(ZDEBUG) $(ZFLAGS) $(PP) $<
+
+mfourier.cmx: mfourier.ml vector.cmx
+	$(CAMLOPTC) $(ZDEBUG) $(ZFLAGS) $(PP) $<
+
+vector.cmx: vector.ml utils.cmx
+	$(CAMLOPTC) $(ZDEBUG) $(ZFLAGS) $(PP) $<
 
 ####################
 #                  #
@@ -212,13 +259,25 @@ clean:
 	rm -f $(CMOFILES) $(MLFILES:.ml=.ml.d)
 	- rm -rf html
 	- rm -f micromega.opt
-	- rm -f Micromega.vo Micromega.glob micromega.ml micromega.mli
-	- rm -f preMicromegatac.vo
-	- rm -f Zpol.vo
-	- rm -f Micromegatac.vo
 	- rm -f micromega.cmxa
+	- rm -f Extraction.vo Extraction.glob micromega.ml micromega.mli
+	- rm -f Micromegatac.vo
 	- rm -f utils.cmx
 	- rm -f g_micromega.cmx
+	- rm -f certificate.cmx
+	- rm -f coq_micromega.cmx
+	- rm -f test
+	- rm -f test/example.vo
+	- rm -f test/qexample.vo
+	- rm -f test/bertot.vo
+	- rm -f test/square.vo
+	- rm -f test/zomicron.vo
+	- rm -f test/rexample.vo
+	- rm -f test/heap3_vcgen_25.vo
+	- rm -f micromega.cmx
+	- rm -f sos.cmx
+	- rm -f mfourier.cmx
+	- rm -f vector.cmx
 
 archclean:
 	rm -f *.cmx *.o

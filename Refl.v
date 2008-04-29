@@ -1,37 +1,47 @@
-(********************************************************************)
+(** Header **)(********************************************************************)
 (*                                                                  *)
-(* Micromega:A reflexive tactics  using the Positivstellensatz      *)
+(* Micromega: A reflexive tactics using the Positivstellensatz      *)
 (*                                                                  *)
 (*  Frédéric Besson (Irisa/Inria) 2006				    *)
 (*                                                                  *)
 (********************************************************************)
-Require Import tacticsPerso.
 Require Import List.
-Require Import Util.
+Require Setoid.
 
-(* Refl of '->' '/\' : basic properties *)
+Set Implicit Arguments.
 
-Fixpoint make_impl (A:Type) (eval : A -> Prop) (l : list A) (goal : Prop) {struct l} : Prop :=
+(* Refl of '->' '/\': basic properties *)
+
+Fixpoint make_impl (A : Type) (eval : A -> Prop) (l : list A) (goal : Prop) {struct l} : Prop :=
   match l with
     | nil => goal
-    | cons e l => (eval e) -> (make_impl A eval l goal)
+    | cons e l => (eval e) -> (make_impl eval l goal)
   end.
 
-Fixpoint make_conj (A:Type) (eval : A -> Prop) (l : list A) {struct l} : Prop :=
+Theorem make_impl_true :
+  forall (A : Type) (eval : A -> Prop) (l : list A), make_impl eval l True.
+Proof.
+induction l as [| a l IH]; simpl.
+trivial.
+intro; apply IH.
+Qed.
+
+Fixpoint make_conj (A : Type) (eval : A -> Prop) (l : list A) {struct l} : Prop :=
   match l with
     | nil => True
     | cons e nil => (eval e)
-    | cons e l2 => ((eval e) /\ (make_conj A eval l2))
+    | cons e l2 => ((eval e) /\ (make_conj eval l2))
   end.
 
-Fixpoint make_dis (A:Type) (eval : A -> Prop) (l:list A) {struct l} : Prop :=
-  match l with
-    | nil => False
-    | cons e nil => eval e
-    | cons e l2  => (eval e) \/ (make_dis A eval l2)
-  end.
+Theorem make_conj_cons : forall (A : Type) (eval : A -> Prop) (a : A) (l : list A),
+  make_conj eval (a :: l) <-> eval a /\ make_conj eval l.
+Proof.
+intros; destruct l; simpl; tauto.
+Qed.
 
-Lemma make_conj_impl : forall  A eval l (g:Prop), (make_conj A eval l -> g) <-> make_impl A eval l g.
+
+Lemma make_conj_impl : forall (A : Type) (eval : A -> Prop) (l : list A) (g : Prop),
+  (make_conj eval l -> g) <-> make_impl eval l g.
 Proof.
   induction l.
   simpl.
@@ -41,21 +51,12 @@ Proof.
   destruct l.
   simpl.
   tauto.
-  generalize  (IHl g).
+  generalize (IHl g).
   tauto.
 Qed.
 
-Lemma make_conj_impl1 : (forall  A eval l (g:Prop), (make_conj A eval l -> g) -> make_impl A eval l g). 
-Proof.
-  exact (fun A eval l g => let (x,y) := make_conj_impl A eval l g  in x).
-Qed.
-
-Lemma make_conj_impl2 : forall  A eval l (g:Prop), make_impl A eval l g -> (make_conj A eval l -> g).
-Proof.
-  exact (fun A eval l g => let (x,y) := make_conj_impl A eval l g  in y).
-Qed.
-
-Lemma make_conj_in : forall  A eval l, make_conj  A eval l ->  (forall p, In p l -> eval  p).
+Lemma make_conj_in : forall (A : Type) (eval : A -> Prop) (l : list A),
+  make_conj eval l -> (forall p, In p l -> eval p).
 Proof.
   induction l.
   simpl.
@@ -65,159 +66,57 @@ Proof.
   destruct l.
   simpl in H0.
   destruct H0.
-  subst ; auto.
+  subst; auto.
   tauto.
   destruct H.
   destruct H0.
   subst;auto.
-  apply IHl ; auto.
-Qed.
-
-Lemma make_conj_in' : forall  (A:Type) (eval:A->Prop) l, (forall p, In p l -> eval p) -> make_conj  A eval l.
-Proof.
-  induction l;simpl;intros.
-  auto.
-  generalize (H _ (or_introl _ (refl_equal a))).
-  destruct l ; try tauto.
-  intros ; split.
-  auto.
-  apply IHl.
-  intros.
-  apply H.
-  right; auto.
+  apply IHl; auto.
 Qed.
 
 
-Lemma make_conj_app : forall  A eval  l1 l2, make_conj A eval l1 -> make_conj A eval l2 -> make_conj A eval (l1++ l2).
-Proof.
-  induction l1.
-  simpl.
-  auto.
-  simpl.
-  destruct l1.
-  simpl.
-  destruct l2.
-  tauto.
-  tauto.
-  intro.
-  case_eq ((a0::l1)++ l2).
-  intros ; discriminate.
-  intros.
-  inversion H;subst.
-  split;try tauto.
-  change (a1::(l1++l2)) with ((a1:: l1)++ l2).
-  apply IHl1.
-  tauto.
-  auto.
-Qed.
 
-Lemma make_dis_app : forall  A eval  l1 l2, make_dis A eval l1 \/ make_dis A eval l2 -> make_dis A eval (l1++ l2).
+Lemma make_conj_app : forall  A eval l1 l2, @make_conj A eval (l1 ++ l2) <-> @make_conj A eval l1 /\ @make_conj A eval l2.
 Proof.
   induction l1.
   simpl.
   tauto.
   intros.
-  simpl.
-  case_eq (l1++l2).
-  simpl in H.
-  intros.
-  destruct l1.
-  destruct H.
-  auto.
-  destruct l2.
-  simpl in H;tauto.
-  discriminate.
-  discriminate.
-  intros.
-  assert (eval a \/ (make_dis A eval l1 \/ make_dis A eval l2)).
-  destruct H ; auto.
-  simpl in H.
-  destruct l1 ; tauto.
-  destruct H1.
-  tauto.
-  right.
-  rewrite <- H0.
-  apply IHl1 ; auto.
-Qed.
-  
-  
-
-Lemma make_conj_app' : forall  A eval l1 l2, make_conj A eval (l1 ++ l2) -> make_conj A eval l1 /\ make_conj A eval l2.
-Proof.
-  induction l1.
-  simpl.
-  tauto.
-  simpl.
-  destruct l1.
-  simpl.
-  destruct l2; simpl.
-  tauto.
-  destruct l2.
-  tauto.
-  tauto.
-  intro.
-  case_eq ((a0::l1)++l2).
-  intros ; discriminate.
-  intros.
-  inversion H;subst.
-  change ((a1:: l1)++l2) with ((a1:: l1)++ l2) in H0.
-  destruct H0.
-  generalize (IHl1 _ H1).
+  change ((a::l1) ++ l2) with (a :: (l1 ++ l2)).
+  rewrite make_conj_cons.
+  rewrite IHl1.
+  rewrite make_conj_cons.
   tauto.
 Qed.
 
-Lemma make_dis_app' : forall  A eval l1 l2, make_dis A eval (l1 ++ l2) -> make_dis A eval l1 \/ make_dis A eval l2.
+Lemma not_make_conj_cons : forall (A:Type) (t:A) a eval  (no_middle_eval : (eval t) \/ ~ (eval  t)),
+  ~ make_conj  eval (t ::a) -> ~  (eval t) \/ (~ make_conj  eval a).
 Proof.
-  induction l1.
-  simpl.
-  tauto.
   intros.
   simpl in H.
-  revert H.
-  case_eq (l1 ++ l2).
-  simpl.
-  destruct l1.
+  destruct a.
   tauto.
-  intros ; discriminate.
-  intros.
-  rewrite <- H in H0.
-  destruct H0.
-  simpl.
-  destruct l1; tauto.
-  generalize (IHl1 _ H0).
-  simpl.
-  destruct l1 ; tauto.
+  tauto.
 Qed.
 
-
-  
-
-Lemma demorgan_1 : forall A eval, (forall x, eval x \/ ~ eval x) -> forall l, ~ make_dis A eval l -> (make_conj A (fun x => ~ eval x) l).
+Lemma not_make_conj_app : forall (A:Type) (t:list A) a eval
+  (no_middle_eval : forall d, eval d \/ ~ eval d) , 
+  ~ make_conj  eval (t ++ a) -> (~ make_conj  eval t) \/ (~ make_conj eval a).
 Proof.
-  induction l.
+  induction t.
   simpl.
-  auto.
-  simpl.
-  destruct l.
-  destruct (H a);tauto.
-  intros.
-  assert (~ eval a /\ ~ make_dis A eval (a0 :: l)).
-  destruct (H a) ; tauto.
   tauto.
-Qed.
-
-Lemma demorgan_2 : forall A eval, forall l,  (make_conj A (fun x => ~ eval x) l)  ->  ~ make_dis A eval l.
-Proof.
-  induction l.
-  simpl.
-  auto.
-  simpl.
-  destruct l.
-  auto.
   intros.
-  destruct H.
+  simpl ((a::t)++a0)in H.
+  destruct (@not_make_conj_cons _ _ _ _  (no_middle_eval a) H).
+  left ; red ; intros.
+  apply H0.
+  rewrite  make_conj_cons in H1.
   tauto.
+  destruct (IHt _ _ no_middle_eval H0).
+  left ; red ; intros.
+  apply H1.
+  rewrite make_conj_cons in H2.
+  tauto.
+  right ; auto.
 Qed.
-
-
-

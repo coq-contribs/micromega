@@ -1,23 +1,32 @@
 -R . Micromega
-tacticsPerso.v
-Util.v
-NRing.v
+Refl.v 
 VarMap.v
-Refl.v
-CheckerMaker.v
-example.v
-sos.ml
-certificate.ml
-fourier_alt.ml
-coq_micromega.ml
-micromega.ml
-utils.ml
+EnvRing.v
+Env.v
+OrderedRing.v
+ZCoeff.v
+RingMicromega.v
+ZMicromega.v
+QMicromega.v
+RMicromega.v
+Tauto.v
 -custom "$(COQBIN)/coqmktop -opt -o micromega.opt nums.cmxa micromega.cmxa" "micromega.cmxa" micromega.opt
--custom "$(COQC) -dump-glob Micromega.glob $(COQDEBUG) $(COQFLAGS) Micromega" "Micromega.v Util.vo Refl.vo CheckerMaker.vo" "Micromega.vo Micromega.glob micromega.ml micromega.mli"
--custom "./micromega.opt $(COQLIBS) -compile preMicromegatac" "preMicromegatac.v micromega.opt" preMicromegatac.vo
--custom "./micromega.opt $(COQLIBS) -compile Zpol" Zpol.v Zpol.vo
--custom "./micromega.opt $(COQLIBS) -compile Micromegatac" "preMicromegatac.vo Zpol.vo Micromegatac.v micromega.opt" Micromegatac.vo
--custom "$(CAMLOPTLINK) -a -o  micromega.cmxa utils.cmx vector.cmx fourier_alt.cmx micromega.cmx sos.cmx certificate.cmx coq_micromega.cmx g_micromega.cmx"
-"coq_micromega.cmx g_micromega.cmx micromega.cmx utils.cmx  fourier_alt.cmx vector.cmx sos.cmx certificate.cmx" micromega.cmxa
+-custom "$(CAMLOPTLINK) -a -o  micromega.cmxa utils.cmx vector.cmx mfourier.cmx micromega.cmx sos.cmx certificate.cmx coq_micromega.cmx g_micromega.cmx" "coq_micromega.cmx g_micromega.cmx micromega.cmx utils.cmx  mfourier.cmx vector.cmx sos.cmx certificate.cmx" micromega.cmxa
+-custom "$(COQC) -dump-glob Extraction.glob $(COQDEBUG) $(COQFLAGS) Extraction" "ZMicromega.vo QMicromega.vo RMicromega.vo Extraction.v" "Extraction.vo Extraction.glob micromega.ml micromega.mli"
+-custom "./micromega.opt $(COQDEBUG) $(COQFLAGS) -compile Micromegatac" "ZMicromega.vo Micromegatac.v micromega.opt" Micromegatac.vo
 -custom "$(CAMLOPTC) $(ZDEBUG) $(ZFLAGS) $(PP) $<" "utils.ml micromega.cmx" utils.cmx
 -custom "$(CAMLOPTC) $(ZDEBUG) $(ZFLAGS) $(PP) -impl $<" "g_micromega.ml4 coq_micromega.cmx" g_micromega.cmx
+-custom "$(CAMLOPTC) $(ZDEBUG) $(ZFLAGS) $(PP) $<" "certificate.ml micromega.cmx utils.cmx sos.cmx mfourier.cmx" certificate.cmx
+-custom "$(CAMLOPTC) $(ZDEBUG) $(ZFLAGS) $(PP) $<" "coq_micromega.ml micromega.cmx utils.cmx certificate.cmx" coq_micromega.cmx
+-custom "" "test/example.vo test/bertot.vo test/square.vo test/zomicron.vo test/qexample.vo test/rexample.vo" test
+-custom "time ./micromega.opt $(COQDEBUG) $(COQFLAGS) -compile test/example" "micromega.opt test/example.v ./Micromegatac.vo ./ZMicromega.vo ./VarMap.vo" test/example.vo  
+-custom "time ./micromega.opt $(COQDEBUG) $(COQFLAGS) -compile test/qexample" "micromega.opt test/qexample.v ./Micromegatac.vo" test/qexample.vo
+-custom "time ./micromega.opt $(COQDEBUG) $(COQFLAGS) -compile test/bertot" "micromega.opt test/bertot.v" test/bertot.vo
+-custom "time ./micromega.opt $(COQDEBUG) $(COQFLAGS) -compile test/square" "micromega.opt test/square.v" test/square.vo
+-custom "time ./micromega.opt $(COQDEBUG) $(COQFLAGS) -compile test/zomicron" "micromega.opt test/zomicron.v" test/zomicron.vo
+-custom "time ./micromega.opt $(COQDEBUG) $(COQFLAGS) -compile test/rexample" "micromega.opt test/rexample.v ./Micromegatac.vo" test/rexample.vo
+-custom "time ./micromega.opt $(COQDEBUG) $(COQFLAGS) -compile test/heap3_vcgen_25" "micromega.opt test/heap3_vcgen_25.v ./Micromegatac.vo" test/heap3_vcgen_25.vo
+-custom "$(CAMLOPTC) $(ZDEBUG) $(ZFLAGS) $(PP) $<" "micromega.ml micromega.cmi" micromega.cmx	
+-custom "$(CAMLOPTC) $(ZDEBUG) $(ZFLAGS) $(PP) $<" "sos.ml" sos.cmx
+-custom "$(CAMLOPTC) $(ZDEBUG) $(ZFLAGS) $(PP) $<" "mfourier.ml vector.cmx" mfourier.cmx
+-custom "$(CAMLOPTC) $(ZDEBUG) $(ZFLAGS) $(PP) $<" "vector.ml utils.cmx" vector.cmx
