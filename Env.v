@@ -1,4 +1,4 @@
-(** Header **)Require Import ZArith.
+Require Import ZArith.
 Require Import Coq.Arith.Max.
 Require Import List.
 (*Require Import BinList.*)

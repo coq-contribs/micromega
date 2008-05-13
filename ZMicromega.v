@@ -1,9 +1,3 @@
-(** Header **)(* Here, we instantiate RingMicromega for 
-   - Z[X] over Z, Q and R (TODO)
-   - Q[X] over Q and R (TODO)
-   - R[X] over R (TODO)
-*)
-
 Require Import OrderedRing.
 Require Import RingMicromega.
 Require Import ZCoeff.
@@ -17,12 +11,6 @@ Ltac flatten_bool :=
            [ id : (_ && _)%bool = true |- _ ] =>  destruct (andb_prop _ _ id); clear id
            |  [ id : (_ || _)%bool = true |- _ ] =>  destruct (orb_prop _ _ id); clear id
          end.
-
-
-(* To begin with, we cope with the case Z[X] -> Z.
-   Cone certificates as defined in RingMicromega are not complete for Z.
-   To improve completeness, it is better to relax > to >= and therefore to define ad'hoc normalisations and negations.
-*)
 
 Require Import EnvRing.
 
@@ -708,9 +696,5 @@ Definition n_of_Z (z:Z) : BinNat.N :=
     | Zneg p => N0
   end.
 
-(* Local Variables: *)
-(* coq-prog-name:"/Users/fbesson/sources/coq-trunk/bin/coqtop" *)
-(* coq-prog-args: ("-emacs-U"  ) *)
-(* End: *)
 
 

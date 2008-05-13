@@ -1,4 +1,4 @@
-(** Header **)Require Import List.
+Require Import List.
 Require Import Refl.
 Require Import Bool.
 

@@ -1,5 +1,3 @@
-(** Header **)
-
 Require Import  ZMicromega.
 Require Import QMicromega.
 Require Import  RMicromega.

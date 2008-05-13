@@ -1,4 +1,4 @@
-(** Header **)Require Import ZArith.
+Require Import ZArith.
 Require Import Micromegatac.
 
 Open Scope Z_scope.

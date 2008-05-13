@@ -1,4 +1,4 @@
-(** Header **)Require Import Setoid.
+Require Import Setoid.
 Require Import Ring.
 
 Set Implicit Arguments.

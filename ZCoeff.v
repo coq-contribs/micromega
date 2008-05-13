@@ -1,4 +1,4 @@
-(** Header **)Require Import OrderedRing.
+Require Import OrderedRing.
 Require Import RingMicromega.
 Require Import ZArith.
 Require Import InitialRing.

@@ -1,4 +1,4 @@
-(** Header **)Require Import NArith.
+Require Import NArith.
 Require Import Relation_Definitions.
 Require Import Setoid.
 (*****)
@@ -769,7 +769,3 @@ Definition simpl_cone (e:ConeMember) : ConeMember :=
 
 End Micromega.
 
-
-(* Local Variables: *)
-(* coq-prog-name:"/Users/fbesson/sources/coq-trunk/bin/coqtop"  *)
-(* End: *)

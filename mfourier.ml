@@ -1,4 +1,4 @@
-(** Header **)(* Yet another implementation of Fourier *)
+(* Yet another implementation of Fourier *)
 open Num
 
 module Cmp =
@@ -10,7 +10,7 @@ struct
    | f::l -> 
       let cmp = f () in
        if cmp = 0 	then  compare_lexical l else cmp
-
+	
  let rec compare_list cmp l1 l2 = 
   match l1 , l2 with
    | []  , [] -> 0
@@ -28,18 +28,18 @@ struct
    xhash  (Hashtbl.hash []) l
 
 end
-
+ 
 module Interval = 
 struct
  (** The type of intervals.  **)
  type intrvl = Empty | Point of num | Itv  of  num option * num option
-
-(**
-   Different intervals can denote the same set of variables e.g., 
-   Point n && Itv (Some n, Some n)
-   Itv (Some x) (Some y) && Empty if x > y
-   see the 'belongs_to' function.
-**)
+  
+ (**
+    Different intervals can denote the same set of variables e.g., 
+    Point n && Itv (Some n, Some n)
+    Itv (Some x) (Some y) && Empty if x > y
+    see the 'belongs_to' function.
+ **)
 
  (* The set of numerics that belong to an interval *)
  let belongs_to n = function
@@ -57,17 +57,23 @@ struct
  let string_of_intrvl = function
   | Empty -> "[]"
   | Point n -> Printf.sprintf "[%s]" (string_of_num n)
-  | Itv(bd1,bd2) -> Printf.sprintf "[%s,%s]" (string_of_bound bd1) (string_of_bound bd2)
+  | Itv(bd1,bd2) -> 
+     Printf.sprintf "[%s,%s]" (string_of_bound bd1) (string_of_bound bd2)
 
  let pick_closed_to_zero = function
   | Empty -> None
   | Point n -> Some n
   | Itv(None,None) -> Some (Int 0)
-  | Itv(None,Some i) -> Some (if  (Int 0) <=/ (floor_num  i) then Int 0 else floor_num i)
-  | Itv(Some i,None) -> Some (if i <=/ (Int 0) then Int 0 else ceiling_num i)
+  | Itv(None,Some i) -> 
+     Some (if  (Int 0) <=/ (floor_num  i) then Int 0 else floor_num i)
+  | Itv(Some i,None) -> 
+     Some (if i <=/ (Int 0) then Int 0 else ceiling_num i)
   | Itv(Some i,Some j) -> 
-     Some (if i <=/ Int 0 && Int 0 <=/ j then Int 0
-      else if ceiling_num i <=/ floor_num j then ceiling_num i (* why not *) else i)
+     Some (
+      if i <=/ Int 0 && Int 0 <=/ j 
+      then Int 0
+      else if ceiling_num i <=/ floor_num j 
+      then ceiling_num i (* why not *) else i)
 
  type status = 
    | O | Qonly | Z | Q 
@@ -78,7 +84,8 @@ struct
   | Itv(None,None) -> Z
   | Itv(None,Some i) -> if ceiling_num i <>/ i then Q else Z
   | Itv(Some i,None) -> if ceiling_num i <>/ i then Q else Z
-  | Itv(Some i,Some j) -> if ceiling_num i <>/ i or floor_num j <>/ j then Q else Z
+  | Itv(Some i,Some j) -> 
+     if ceiling_num i <>/ i or floor_num j <>/ j then Q else Z
 
  let empty_z = function
   | Empty -> true
@@ -131,23 +138,13 @@ struct
   match compare_num a (Int 0) with
    | 0 -> 
       if compare_num b (Int 0) = 1
-      then Empty  (*actually this is a contradiction  failwith "bound_of_constraint" *)
+      then Empty  
+       (*actually this is a contradiction  failwith "bound_of_constraint" *)
       else Itv (None,None)
    | 1 -> Itv (Some (div_num  b a),None)
    | -1 -> Itv (None, Some (div_num  b a))
    | x -> failwith "bound_of_constraint(2)"
 
- (*
-   let cutting_planes x = 
-   let cp_left i = if ceiling_num i =/ i then [] else[Int 1,i] in
-   let cp_right i = if ceiling_num i =/ i then [] else [Int (-1),minus_num i] in
-   match x with
-   | Point p -> if ceiling_num i =/
-   | Empty | Itv(None,None)-> []
-   | Itv(None,Some i) -> cp_right i
-   | Itv(Some i, None) -> cp_left i
-   | Itv (Some i, Some j) -> (cp_left i) @ (cp_right j)
- *)
 
  let bounded x = 
   match x with
@@ -159,7 +156,7 @@ struct
   | Empty -> Some (Int 0)
   | Point n -> Some (Int (if ceiling_num n =/ n then 1 else 0))
   | Itv(None,_) | Itv(_,None)-> None
-  | Itv(Some i,Some j) -> Some (floor_num j -/ceiling_num i +/ (Int 1)) 
+  | Itv(Some i,Some j) -> Some (floor_num j -/ceiling_num i +/ (Int 1))
 
  (* Returns the interval of smallest range *)
  let smaller_itv i1 i2 = 
@@ -240,7 +237,8 @@ struct
    try 
     CMap.fold (fun v i () -> 
      match i.itv with
-      | Point n -> let e = {coeffs = v ; op = Eq ; cst = n} in 	raise	(Found e)
+      | Point n -> let e = {coeffs = v ; op = Eq ; cst = n} 
+	in 	raise	(Found e)
       |    _    -> () ) bag () ; None
    with Found c -> Some c
 
@@ -249,7 +247,8 @@ struct
    CMap.fold (fun v itv acc -> 
     match itv.itv with
      | Empty | Itv(None,None)  -> failwith "fold Empty"
-     | Itv(None ,Some i) -> 		f {coeffs = V.mul (Int (-1)) v ; op = Ge ; cst = minus_num i} acc
+     | Itv(None ,Some i) -> 
+	f {coeffs = V.mul (Int (-1)) v ; op = Ge ; cst = minus_num i} acc
      | Point n           ->   f {coeffs =  v ; op = Eq ; cst = n} acc
      | Itv(x,y) -> 	
 	(match x with 
@@ -257,19 +256,28 @@ struct
 	 | Some i -> f {coeffs = v ; op = Ge ; cst = i})
 	 (match y with
 	  | None -> acc
-	  | Some i -> f {coeffs = V.mul (Int (-1)) v ; op = Ge ; cst = minus_num i} acc
+	  | Some i -> 
+	     f {coeffs = V.mul (Int (-1)) v ; op = Ge ; cst = minus_num i} acc
 	 ) ) bag acc
 
 
   let remove l _ = failwith "remove:Not implemented"
-
-  module Map = Map.Make(struct type t = int let compare : int -> int -> int = Pervasives.compare end)
+   
+  module Map = 
+   Map.Make(
+    struct 
+     type t = int 
+     let compare : int -> int -> int = Pervasives.compare 
+    end)
 
   let split f (t:t) =
-   let res = fold (fun e m -> let i = f e in
-                               Map.add i (add (cstr_to_itv e) (try Map.find i m with Not_found -> empty)) m) t Map.empty in
+   let res = 
+    fold (fun e m -> let i = f e in
+                      Map.add i (add (cstr_to_itv e) 
+				  (try Map.find i m with 
+				    Not_found -> empty)) m) t Map.empty in
     (fun i -> try Map.find i res with Not_found -> empty)
-
+     
   type map = (int list * int list) Map.t
     
     
@@ -280,7 +288,9 @@ struct
      let (lp,ln) = try  Map.find pos res with Not_found -> ([],[]) in
       match s with
        | Vect.Pos -> Map.add pos (idx::lp,ln) res
-       | Vect.Neg -> Map.add pos (lp, idx::ln) res) res (Vect.status c.coeffs))) b (0,Map.empty) in
+       | Vect.Neg -> 
+	  Map.add pos (lp, idx::ln) res) res 
+     (Vect.status c.coeffs))) b (0,Map.empty) in
     Map.fold (fun k e res -> (k,e)::res)  map []
      
 
@@ -312,7 +322,8 @@ struct
  let print_bag_file file msg b =
   let f = open_out file in
    output_string f msg;
-   CstrBag.fold (fun e () -> Printf.fprintf f "%s\n" (Cstr.string_of_cstr e)) b () 
+   CstrBag.fold (fun e () -> 
+    Printf.fprintf f "%s\n" (Cstr.string_of_cstr e)) b () 
 
     
  (* A system with only inequations --
@@ -322,10 +333,12 @@ struct
   let split = CstrBag.split splitter m in
    (split (-1) , split 0, split 1)
 
-
+    
  (* op of the result is arbitrary Ge *) 
  let lin_comb n1 c1 n2 c2 =
-  { coeffs = Vect.lin_comb n1 c1.coeffs n2 c2.coeffs ; op = Ge ; cst = (n1 */ c1.cst) +/ (n2 */ c2.cst)}
+  { coeffs = Vect.lin_comb n1 c1.coeffs n2 c2.coeffs ; 
+    op = Ge ; 
+    cst = (n1 */ c1.cst) +/ (n2 */ c2.cst)}
 
  (* BUG? : operator of the result ? *)
 
@@ -342,7 +355,8 @@ struct
  let project i m =
   let (neg,zero,pos) = partition i m in
   let project1 cpos acc = 
-   CstrBag.fold (fun cneg res -> CstrBag.add (combine_project i cpos cneg) res) neg acc in
+   CstrBag.fold (fun cneg res ->
+    CstrBag.add (combine_project i cpos cneg) res) neg acc in
    (CstrBag.fold project1 pos zero)
 
  (* Given a vector [x1 -> v1; ... ; xn -> vn]
@@ -363,7 +377,9 @@ struct
 
 
  let compare_status (i,(lp,ln)) (i',(lp',ln')) = 
-  let cmp = Pervasives.compare ((List.length lp) * (List.length ln))  ((List.length lp') * (List.length ln')) in
+  let cmp = Pervasives.compare 
+   ((List.length lp) * (List.length ln))  
+   ((List.length lp') * (List.length ln')) in
    if cmp = 0
    then Pervasives.compare i i'
    else cmp
@@ -381,7 +397,10 @@ struct
 	let cproj = cardinal proj in
 	 (*Printf.printf " p %i " cproj; flush stdout;*)
 	 match best with
-	  | None -> if cproj < bound then Some(cproj,proj,i) else xlight (Some(cproj,proj,i)) l
+	  | None -> 
+	     if cproj < bound 
+	     then Some(cproj,proj,i) 
+	     else xlight (Some(cproj,proj,i)) l
 	  | Some (cbest,_,_) -> 		
 	     if cproj < cbest 
 	     then 
@@ -403,17 +422,24 @@ struct
  let pivot (n,v) eq ge =
   assert (eq.op = Eq) ;
   let res = 
-   match compare_num v (Int 0), compare_num (Vect.get n ge.coeffs) (Int 0)with
+   match 
+    compare_num v (Int 0), 
+    compare_num (Vect.get n ge.coeffs) (Int 0) 
+   with
     | 0 , _ -> failwith "Buggy"
     | _ ,0  -> (CstrBag.cstr_to_itv ge)
     | 1 , -1 -> combine_project n eq ge
     | -1 , 1 -> combine_project n ge eq
-    | 1  , 1 -> combine_project n ge {coeffs = Vect.mul (Int (-1)) eq.coeffs; op = eq.op ; cst = minus_num eq.cst}
-    | -1 , -1 -> combine_project n {coeffs = Vect.mul (Int (-1)) eq.coeffs; op = eq.op ; cst = minus_num eq.cst} ge
+    | 1  , 1 -> 
+       combine_project n ge 
+	{coeffs = Vect.mul (Int (-1)) eq.coeffs; 
+	 op = eq.op ; 
+	 cst = minus_num eq.cst}
+    | -1 , -1 -> 
+       combine_project n 
+	{coeffs = Vect.mul (Int (-1)) eq.coeffs; 
+	 op = eq.op ; cst = minus_num eq.cst} ge
     | _ -> failwith "pivot" in
-   (*						if debug then (
-						Printf.printf "pivot %i %s %s %s = %s\n" n (string_of_num v) (Cstr.string_of_cstr eq) (Cstr.string_of_cstr ge) (Cstr.string_of_cstr res); flush stdout);
-   *)
    res
 
  let check_cstr v c = 
@@ -441,7 +467,8 @@ struct
  let check_null sys = forall check_null_cstr sys
 
 
- let optimise_ge quick_check choose choose_idx return_empty return_ge return_eq  m = 
+ let optimise_ge 
+   quick_check choose choose_idx return_empty return_ge return_eq  m =
   let c = cardinal m in
   let bound =  2 * c  in
    if debug then (Printf.printf "optimise_ge: %i\n" c; flush stdout);
@@ -474,7 +501,8 @@ struct
       | None -> (*if l = [] then None else*) return_empty m
       | Some i -> 
 	 let p  = (i,Vect.get i eq.coeffs) in
-	 let m' = CstrBag.fold (fun ge res -> CstrBag.add (pivot p eq ge) res) m CstrBag.empty in
+	 let m' = CstrBag.fold 
+	  (fun ge res -> CstrBag.add (pivot p eq ge) res) m CstrBag.empty in
 	  match xoptimise ( m') with
 	   | None -> None
 	   | Some mapp -> return_eq m eq i mapp in
@@ -499,29 +527,35 @@ struct
    
   let opt_zero_return_ge m i mapping = 
    let (it:intrvl) = CstrBag.fold (fun cstr itv -> Interval.inter 
-    (bound_of_constraint (evaluate_constraint i mapping cstr)) itv) m (Itv (None, None)) in
+    (bound_of_constraint (evaluate_constraint i mapping cstr)) itv) m 
+    (Itv (None, None)) in
     match pick_closed_to_zero it with
      | None -> print_endline "Cannot pick" ; None
      | Some v -> 
 	let res =  (Vect.set i v mapping) in
-	 if debug then Printf.printf "xoptimise res %i [%s]" i (Vect.string res) ;
+	 if debug 
+	 then Printf.printf "xoptimise res %i [%s]" i (Vect.string res) ;
 	 Some res in
 
   let opt_zero_return_eq m eq i mapp = 
    let (a,b) = evaluate_constraint i mapp eq in
     Some (Vect.set i (div_num b a) mapp) in
    
-   optimise_ge check_null opt_zero_choose choose_idx opt_zero_return_empty opt_zero_return_ge opt_zero_return_eq   m
+   optimise_ge check_null opt_zero_choose 
+    choose_idx opt_zero_return_empty opt_zero_return_ge opt_zero_return_eq   m
 
  let normalise cstr = [CstrBag.cstr_to_itv cstr]
 
  let find_point l = 
-(*  List.iter (fun e -> print_endline (Cstr.string_of_cstr e)) l;*)
+  (*  List.iter (fun e -> print_endline (Cstr.string_of_cstr e)) l;*)
   try 
-   let m = List.fold_left (fun sys e -> CstrBag.add (CstrBag.cstr_to_itv e) sys) CstrBag.empty l in
+   let m = List.fold_left (fun sys e -> CstrBag.add (CstrBag.cstr_to_itv e) sys) 
+    CstrBag.empty l in
     match minimise m with
      | None -> None
-     | Some res -> if debug then Printf.printf "[%s]"  (Vect.string res); Some res
+     | Some res -> 
+	if debug then Printf.printf "[%s]"  (Vect.string res); 
+	Some res
   with CstrBag.Contradiction -> None
 
 
@@ -535,14 +569,17 @@ struct
      | i::l -> if i = x then xchoose l else Some (project i m,i) in
     xchoose l in
 
-  let rec choose_idx = function [] -> None | e::l -> if e = x then choose_idx l else Some e in
+  let rec choose_idx = function 
+    [] -> None 
+   | e::l -> if e = x then choose_idx l else Some e in
 
   let return_empty m = (* Beurk *)
    (* returns the interval of x *)
    Some (CstrBag.fold (fun cstr itv -> 
-    let i = if cstr.op = Eq then Point (cstr.cst // Vect.get x cstr.coeffs)  else 
-      if Vect.is_null (Vect.set x (Int 0) cstr.coeffs) then 
-       bound_of_constraint (Vect.get x cstr.coeffs  , cstr.cst) 
+    let i = if cstr.op = Eq 
+    then Point (cstr.cst // Vect.get x cstr.coeffs)  
+     else if Vect.is_null (Vect.set x (Int 0) cstr.coeffs) 
+     then  bound_of_constraint (Vect.get x cstr.coeffs  , cstr.cst) 
      else itv
    in
 		       Interval.inter i itv) m (Itv (None, None)))  in
@@ -552,36 +589,59 @@ struct
   let return_eq m eq i res = Some res in
 
    try 
-    optimise_ge (fun x -> false) choose choose_idx return_empty return_ge return_eq m 
+    optimise_ge 
+     (fun x -> false) choose choose_idx return_empty return_ge return_eq m
    with CstrBag.Contradiction -> None
 
 
  let find_q_intervals sys =
-  let variables =  List.map fst (List.sort compare_status (CstrBag.status sys)) in
+  let variables =  
+   List.map fst (List.sort compare_status (CstrBag.status sys)) in
    List.map (fun x -> (x,find_q_interval_for x sys)) variables
 
- let pp_option f o = function None -> Printf.fprintf o "None" | Some x -> Printf.fprintf o "Some %a" f x
+ let pp_option f o = function 
+   None -> Printf.fprintf o "None" 
+  | Some x -> Printf.fprintf o "Some %a" f x
 
  let optimise vect sys = 
   (* we have to modify the system with a dummy variable *)
-  let fresh = List.fold_left (fun fr c -> Pervasives.max fr (Vect.fresh c.coeffs)) 0 sys in
+  let fresh = 
+   List.fold_left (fun fr c -> Pervasives.max fr (Vect.fresh c.coeffs)) 0 sys in
    assert (List.for_all (fun x -> Vect.get fresh x.coeffs =/ Int 0) sys);
-   let cstr = {coeffs = Vect.set fresh (Int (-1)) vect ; op = Eq ; cst = (Int 0)} in
+   let cstr = {
+    coeffs = Vect.set fresh (Int (-1)) vect ; 
+    op = Eq ; 
+    cst = (Int 0)} in
     try 
-     find_q_interval_for fresh (List.fold_left (fun bg c -> CstrBag.add (CstrBag.cstr_to_itv c) bg)  CstrBag.empty (cstr::sys))
-      
-      
+     find_q_interval_for fresh 
+      (List.fold_left 
+	(fun bg c -> CstrBag.add (CstrBag.cstr_to_itv c) bg)  
+	CstrBag.empty (cstr::sys))
     with CstrBag.Contradiction -> None
 
 
- let optimise vect sys = let res = optimise vect sys in 
-			  if debug then Printf.printf "optimise %s -> %a\n" (Vect.string vect) (pp_option (fun o x -> Printf.printf "%s" (string_of_intrvl x))) res  ; res
+ let optimise vect sys = 
+  let res = optimise vect sys in 
+   if debug 
+   then Printf.printf "optimise %s -> %a\n" 
+    (Vect.string vect) (pp_option (fun o x -> Printf.printf "%s" (string_of_intrvl x))) res  
+   ; res
 
  let find_Q_interval sys = 
   try 
-   let sys = (List.fold_left (fun bg c -> CstrBag.add (CstrBag.cstr_to_itv c) bg)  CstrBag.empty sys) in
-   let candidates = List.fold_left (fun l (x,i) -> match i with None -> (x,Empty)::l | Some i ->  (x,i)::l) [] (find_q_intervals sys) in
-    match List.fold_left (fun (x1,i1) (x2,i2) -> if smaller_itv i1 i2 then (x1,i1) else (x2,i2)) (-1,Itv(None,None)) candidates with
+   let sys = 
+    (List.fold_left 
+      (fun bg c -> CstrBag.add (CstrBag.cstr_to_itv c) bg)  CstrBag.empty sys) in
+   let candidates = 
+    List.fold_left 
+     (fun l (x,i) -> match i with 
+       None -> (x,Empty)::l 
+      | Some i ->  (x,i)::l) [] (find_q_intervals sys) in
+    match List.fold_left 
+     (fun (x1,i1) (x2,i2) -> 
+      if smaller_itv i1 i2 
+      then (x1,i1) else (x2,i2)) (-1,Itv(None,None)) candidates 
+    with
      | (i,Empty) -> None
      | (x,Itv(Some i, Some j))  -> Some(i,x,j)
      | (x,Point n) -> Some(n,x,n)
@@ -590,9 +650,4 @@ struct
 
 
 end
- 
-
-
-
-
 

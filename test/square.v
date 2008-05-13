@@ -1,4 +1,4 @@
-(** Header **)(*
+(*
    Require Import ZArith ZArithRing Omega Zwf.
    Require Import Micromegatac.
    Open Scope Z_scope.

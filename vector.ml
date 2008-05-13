@@ -1,4 +1,4 @@
-(** Header **)open Num
+open Num
 
 module type S =
 sig

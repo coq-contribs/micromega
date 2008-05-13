@@ -1,5 +1,3 @@
-(** Header **)
-
 Require Import ZArith.
 Require Import Micromegatac.
 Require Import Ring_normalize.

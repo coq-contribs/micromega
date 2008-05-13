@@ -1,4 +1,4 @@
-(** Header **)Require Import ZMicromega.
+Require Import ZMicromega.
 Require Import QMicromega.
 Require Import VarMap.
 Require Import RingMicromega.

@@ -1,4 +1,4 @@
-(** Header **)Require Import Micromegatac.
+Require Import Micromegatac.
 Require Import Reals.
 Require Import Ring_normalize.
 

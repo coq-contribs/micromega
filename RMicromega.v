@@ -1,4 +1,4 @@
-(** Header **)Require Import OrderedRing.
+Require Import OrderedRing.
 Require Import RingMicromega.
 Require Import Refl.
 Require Import Reals.
@@ -132,6 +132,3 @@ Proof.
 Qed.
 
 
-(* Local Variables: *)
-(* coq-prog-name:"/Users/fbesson/sources/coq-trunk/bin/coqtop"  *)
-(* End: *)

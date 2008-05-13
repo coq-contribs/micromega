@@ -1061,7 +1061,8 @@ let decimal =
     || prs in
   let exponent = (a "e" || a "E") ++ signed decimalint >> snd in
     signed decimalsig ++ possibly exponent
-    >> (function (h,[]) -> h | (h,[x]) -> h */ power_num (Int 10) x | _ -> failwith "exponent");;
+    >> (function (h,[]) -> h | (h,[x]) -> h */ power_num (Int 10) x | _ -> 
+     failwith "exponent");;
 
 let mkparser p s =
   let x,rst = p(explode s) in
@@ -1632,7 +1633,8 @@ let blocks blocksizes bm =
 (* Positiv- and Nullstellensatz. Flag "linf" forces a linear representation. *)
 (* ------------------------------------------------------------------------- *)
 
-let real_positivnullstellensatz_general linf d eqs leqs pol :   poly list *  (positivstellensatz * (num * poly) list) list  =
+let real_positivnullstellensatz_general linf d eqs leqs pol 
+  :   poly list *  (positivstellensatz * (num * poly) list) list  =
   
   let vars = itlist ((o) union poly_variables) (pol::eqs @ map fst leqs) [] in
   let monoid =
@@ -1822,7 +1824,9 @@ let deepen_until limit f n =
     | -1 -> deepen f n
     | _  -> 
 	let rec d_until  f n =
-	  try if !debugging then (print_string "Searching with depth limit "; print_int n; print_newline()) ; f n
+	  try if !debugging 
+	  then (print_string "Searching with depth limit "; 
+		print_int n; print_newline()) ; f n
 	  with Failure x -> 
 	    if !debugging then (Printf.printf "solver error : %s\n" x) ; 
 	    if n = limit then raise TooDeep else  d_until f (n + 1) in
@@ -1839,7 +1843,8 @@ let real_nonlinear_prover  depthmax eqs les lts =
   let pol = itlist poly_mul lt (poly_const num_1)
   and lep = map (fun (t,i) -> t,Axiom_le i) (zip le (0--(length le - 1)))
   and ltp =  map (fun (t,i) -> t,Axiom_lt i) (zip lt (0--(length lt - 1))) 
-  and eqp =  itlist2 (fun t i res -> if t = undefined then res else (t,Axiom_eq i)::res) eq (0--(length eq - 1)) []
+  and eqp =  itlist2 (fun t i res -> 
+   if t = undefined then res else (t,Axiom_eq i)::res) eq (0--(length eq - 1)) []
   in
     
   let proof =
@@ -1848,21 +1853,22 @@ let real_nonlinear_prover  depthmax eqs les lts =
       let tryall d =
 	let e = multidegree pol (*and pol' = poly_neg pol*) in
 	let k = if e = 0 then 1 else d / e in
-	  tryfind (fun i -> d,i, real_positivnullstellensatz_general false d  eq leq
-                     (poly_neg(poly_pow pol i)))
-            (0--k) in
+	  tryfind (fun i -> d,i, 
+	   real_positivnullstellensatz_general false d  eq leq
+            (poly_neg(poly_pow pol i)))
+           (0--k) in
       let d,i,(cert_ideal,cert_cone) = deepen_until depthmax tryall 0 in
       let proofs_ideal =
-	map2 (fun q i -> Eqmul(term_of_poly q,i))
-          cert_ideal (List.map snd eqp)
+       map2 (fun q i -> Eqmul(term_of_poly q,i))
+        cert_ideal (List.map snd eqp)
       and proofs_cone = map term_of_sos cert_cone
       and proof_ne =
-	if lt = [] then Rational_lt num_1 else
-	  let p = end_itlist (fun s t -> Product(s,t)) (map snd ltp) in
-	    funpow i (fun q -> Product(p,q)) (Rational_lt num_1) in
-	end_itlist (fun s t -> Sum(s,t)) (proof_ne :: proofs_ideal @ proofs_cone) in
-    if !debugging then (print_string("Translating proof certificate to Coq"); print_newline());
-    proof;;
+       if lt = [] then Rational_lt num_1 else
+	let p = end_itlist (fun s t -> Product(s,t)) (map snd ltp) in
+	 funpow i (fun q -> Product(p,q)) (Rational_lt num_1) in
+       end_itlist (fun s t -> Sum(s,t)) (proof_ne :: proofs_ideal @ proofs_cone) in
+   if !debugging then (print_string("Translating proof certificate to Coq"); print_newline());
+   proof;;
 
 
 (* ------------------------------------------------------------------------- *)
@@ -2060,6 +2066,7 @@ let sumofsquares_general_symmetry tool pol =
   let sos = poly_cmul rat (end_itlist poly_add sqs) in
   if is_undefined(poly_sub sos pol) then rat,lins else raise Sanity;;
 
-let (sumofsquares: poly -> Num.num * (( Num.num * poly) list))  = sumofsquares_general_symmetry csdp;;
+let (sumofsquares: poly -> Num.num * (( Num.num * poly) list))  = 
+sumofsquares_general_symmetry csdp;;
 
 
