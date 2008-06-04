@@ -6,7 +6,7 @@ Lemma plus_minus : forall x y,
   0 == x + y -> 0 ==  x -y -> 0 == x /\ 0 == y.
 Proof.
   intros.
-  qomicron.
+  omicron Q.
 Qed.
 
 (* Other (simple) examples *)
@@ -15,13 +15,13 @@ Open Scope Q_scope.
 Lemma binomial : forall x y:Q, ((x+y)^2 == x^2 + (2 # 1) *x*y + y^2).
 Proof.
   intros.
-  qomicron.
+  omicron Q.
 Qed.
 
 
 Lemma hol_light19 : forall m n, (2 # 1) * m + n == (n + m) + m.
 Proof.
-  intros ; qomicron.
+  intros ; omicron Q.
 Qed.
 Open Scope Z_scope.
 Open Scope Q_scope.
@@ -50,13 +50,6 @@ Lemma vcgen_25 : forall
   (( 1# 1) == (-2 # 1) * i + it).
 Proof.
   intros.
-  qomicron.
+  omicron Q.
 Qed.
 
-
-
-
-
-(* Local Variables: *)
-(* coq-prog-name:"/Users/fbesson/sources/coq-trunk/contrib/micromega/micromega.opt" "-compile" *)
-(* End: *)

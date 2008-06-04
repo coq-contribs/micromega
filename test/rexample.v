@@ -8,7 +8,7 @@ Lemma plus_minus : forall x y,
   0 = x + y -> 0 =  x -y -> 0 = x /\ 0 = y.
 Proof.
   intros.
-  romicron.
+  omicron R.
 Qed.
 
 (* Other (simple) examples *)
@@ -16,13 +16,13 @@ Qed.
 Lemma binomial : forall x y, ((x+y)^2 = x^2 + 2 *x*y + y^2).
 Proof.
   intros.
-  romicron.
+  omicron R.
 Qed.
 
 
 Lemma hol_light19 : forall m n, 2 * m + n = (n + m) + m.
 Proof.
-  intros ; romicron.
+  intros ; omicron R.
 Qed.
 
 
@@ -50,13 +50,6 @@ Lemma vcgen_25 : forall
   (( 1 ) = (-2  ) * i + it).
 Proof.
   intros.
-  romicron.
+  omicron R.
 Qed.
 
-
-
-
-
-(* Local Variables: *)
-(* coq-prog-name:"/Users/fbesson/sources/coq-trunk/contrib/micromega/micromega.opt" "-compile" *)
-(* End: *)

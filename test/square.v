@@ -34,7 +34,7 @@ Open Scope Z_scope.
 
 Lemma Zabs_square : forall x,  (Zabs  x)^2 = x^2.
 Proof.
- intros ; case (Zabs_dec x) ; intros ; micromega.
+ intros ; case (Zabs_dec x) ; intros ; micromega Z.
 Qed.
 Hint Resolve Zabs_pos Zabs_square.
 
@@ -44,11 +44,11 @@ intros [n [p [Heq Hnz]]]; pose (n' := Zabs n); pose (p':=Zabs p).
 assert (facts : 0 <= Zabs n /\ 0 <= Zabs p /\ Zabs n^2=n^2
          /\ Zabs p^2 = p^2) by auto.
 assert (H : (0 < n' /\ 0 <= p' /\ n' ^2 = 2* p' ^2)) by 
-  (destruct facts as [Hf1 [Hf2 [Hf3 Hf4]]]; unfold n', p' ; micromega).
+  (destruct facts as [Hf1 [Hf2 [Hf3 Hf4]]]; unfold n', p' ; micromega Z).
 generalize p' H; elim n' using (well_founded_ind (Zwf_well_founded 0)); clear.
 intros n IHn p [Hn [Hp Heq]].
-assert (Hzwf : Zwf 0 (2*p-n) n) by (unfold Zwf; micromega).
-assert (Hdecr : 0 < 2*p-n /\ 0 <= n-p /\ (2*p-n)^2=2*(n-p)^2) by micromega.
+assert (Hzwf : Zwf 0 (2*p-n) n) by (unfold Zwf; micromega Z).
+assert (Hdecr : 0 < 2*p-n /\ 0 <= n-p /\ (2*p-n)^2=2*(n-p)^2) by micromega Z.
 apply (IHn (2*p-n) Hzwf (n-p) Hdecr).
 Qed.
 
@@ -82,8 +82,3 @@ Proof.
  by (intros Hx; simpl in HQeq; rewrite Hx in HQeq; discriminate HQeq).
  apply integer_statement; exists (Qnum x); exists (' Qden x); auto.
 Qed.
-
-(* Local Variables: *)
-(* coq-prog-args: ("-emacs" "-I" "..") *)
-(* coq-prog-name:"/Users/fbesson/Work/Micromega_dev/micromega.opt" "-compile" *)
-(* End: *)

@@ -26,5 +26,5 @@ Lemma vcgen_25 : forall
   (H13 : 0 <= 121 * i + 810 * j + -7465 * m + 64350),
   (1 = -2 * i + it).
 Proof.
-  intros ; omicron.
+  intros ; omicron Z.
 Qed.
