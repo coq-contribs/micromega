@@ -191,7 +191,7 @@ Proof.
   psatz Z 2.
 Qed.
 
-(* from hol_light/Examples/sos.ml *)
+(* from hol_light/Examples/psatz.ml *)
 
 Lemma hol_light1 : forall a1 a2 b1 b2,
   a1 >= 0 -> a2 >= 0 -> 
@@ -333,7 +333,7 @@ Qed.
 
 Lemma motzkin' : forall x y, (x^2+y^2+1)*(x^2*y^4 + x^4*y^2 + 1 - 3*x^2*y^2) >= 0.
 Proof.
-  intros ; sos Z.
+  intros ; psatz Z.
 Qed.
 
 
