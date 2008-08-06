@@ -1,4 +1,12 @@
-Require Import Micromegatac.
+(************************************************************************)
+(*                                                                      *)
+(* Micromega: A reflexive tactic using the Positivstellensatz           *)
+(*                                                                      *)
+(*  Frédéric Besson (Irisa/Inria) 2006-2008                             *)
+(*                                                                      *)
+(************************************************************************)
+
+Require Import Psatz.
 Require Import QArith.
 Require Import Ring_normalize.
 
@@ -6,8 +14,11 @@ Lemma plus_minus : forall x y,
   0 == x + y -> 0 ==  x -y -> 0 == x /\ 0 == y.
 Proof.
   intros.
-  omicron Q.
+  psatzl Q.
 Qed.
+
+
+
 
 (* Other (simple) examples *)
 Open Scope Q_scope.
@@ -15,13 +26,13 @@ Open Scope Q_scope.
 Lemma binomial : forall x y:Q, ((x+y)^2 == x^2 + (2 # 1) *x*y + y^2).
 Proof.
   intros.
-  omicron Q.
+  psatzl Q.
 Qed.
 
 
 Lemma hol_light19 : forall m n, (2 # 1) * m + n == (n + m) + m.
 Proof.
-  intros ; omicron Q.
+  intros ; psatzl Q.
 Qed.
 Open Scope Z_scope.
 Open Scope Q_scope.
@@ -50,6 +61,19 @@ Lemma vcgen_25 : forall
   (( 1# 1) == (-2 # 1) * i + it).
 Proof.
   intros.
-  omicron Q.
+  psatzl Q.
 Qed.
+
+Goal forall x, -x^2 >= 0 -> x - 1 >= 0 -> False.
+Proof.
+  intros.
+  psatz Q 2.
+Qed.
+
+Lemma motzkin' : forall x y, (x^2+y^2+1)*(x^2*y^4 + x^4*y^2 + 1 - (3 # 1) *x^2*y^2) >= 0.
+Proof.
+  intros ; psatz Q.
+Qed.
+
+
 
