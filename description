@@ -10,7 +10,6 @@ Address:
         35042 RENNES Cedex - France
 Date: 20 Novembre 2006
 Description: Micromega is a Coq reflexive tactic for a fragment of integer arithmetics.
-URL:
 License: LGPL
 Keywords: tactic reflection arithmetic non-linear
 Require:
